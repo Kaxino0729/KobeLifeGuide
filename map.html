@@ -1,0 +1,83 @@
+<!-- 文件名: map.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マップ - 店舗情報</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    #map {
+      height: 500px;
+      width: 90%;
+      margin: 20px auto;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🗺️ 神戸周辺マップ</h1>
+    <nav class="navbar">
+      <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="procedure.html" class="btn">📄 手続きガイド</a>
+      <a href="map.html" class="btn">🗺️ マップ</a>
+      <a href="review.html" class="btn">⭐ レビュー</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h2>📍 おすすめのお店</h2>
+      <p>神戸・三宮周辺の便利なお店や施設を地図でご紹介します。</p>
+    </section>
+    <div id="map"></div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- papaparse  csvlink  用于csv文件读取-->
+
+  <script>
+    function initMap() {
+      const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅  中心
+      const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: center
+      });
+      const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+      // csv文件地址
+      Papa.parse(csvUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          results.data.forEach(place => {
+            if (!place.lat || !place.lng) return;
+
+            const marker = new google.maps.Marker({
+              position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) },
+              map: map
+            });
+
+            const infoWindow = new google.maps.InfoWindow({
+              content: `<strong>${place.name}</strong><br>${place.description || ''}`
+            });
+
+            marker.addListener("click", () => {
+              infoWindow.open(map, marker);
+            });
+          });
+        }
+      });
+    }
+  </script>
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
+  <!-- google maps api -->
+</body>
+</html>

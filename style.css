@@ -1,0 +1,99 @@
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f9f9f9;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #0077b6;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+.navbar {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn {
+  background-color: white;
+  color: #0077b6;
+  padding: 8px 15px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  border: 2px solid white;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  background-color: #023e8a;
+  color: white;
+  border: 2px solid #023e8a;
+}
+
+main {
+  padding: 30px;
+  text-align: center;
+}
+
+.intro {
+  margin-bottom: 30px;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.card {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 15px;
+  padding: 20px;
+  width: 250px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+.icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+  color: #0077b6;
+}
+
+footer {
+  text-align: center;
+  background-color: #eee;
+  padding: 15px;
+  margin-top: 40px;
+  font-size: 14px;
+}
+
+/* 📱 モバイル対応 */
+@media screen and (max-width: 600px) {
+  .card {
+    width: 90%;
+  }
+  nav.navbar {
+    flex-direction: column;
+  }
+  .btn {
+    margin: 5px 0;
+    width: 80%;
+    text-align: center;
+  }
+}
