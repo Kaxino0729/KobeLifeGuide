@@ -7,6 +7,7 @@
   <title>マップ - 店舗情報</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     #map {
       height: 500px;
@@ -15,7 +16,19 @@
       border: 1px solid #ccc;
       border-radius: 10px;
     }
+    #searchBox {
+      width:80%;
+      max-width:400px;
+      margin:10px auto;
+      display:block;
+      padding:8px 10px;
+      border-radius:8px;
+      border:1px solid #999;
+      font-size:16px;
+    }
   </style>
+
+
 </head>
 <body>
   <header>
@@ -32,6 +45,7 @@
     <section class="intro">
       <h2>📍 おすすめのお店</h2>
       <p>神戸・三宮周辺の便利なお店や施設を地図でご紹介します。</p>
+      <input type="text" id="searchBox" placeholder="店名・キーワードで検索...">
     </section>
     <div id="map"></div>
   </main>
@@ -44,19 +58,22 @@
   <!-- papaparse  csvlink  用于csv文件读取-->
 
   <script>
+    let allMarkers = [];
+
     function initMap() {
       const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅  中心
       const map = new google.maps.Map(document.getElementById("map"), {
         zoom: 15,
         center: center
       });
+
       const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
       // csv文件地址
       Papa.parse(csvUrl, {
         download: true,
         header: true,
         complete: function(results) {
-          results.data.forEach(place => {
+          allMarkers = results.data.map(place => {
             if (!place.lat || !place.lng) return;
 
             const marker = new google.maps.Marker({
@@ -71,9 +88,26 @@
             marker.addListener("click", () => {
               infoWindow.open(map, marker);
             });
-          });
+
+            marker.name = place.name;
+            marker.description = place.description;
+            marker.infoWindow = infoWindow;
+            return marker;
+
+          }).filter(m => m !== null);
         }
       });
+      document.getElementById("searchBox").addEventListener("input", function(e) {
+        const keyword = e.target.value.toLowerCase();
+        allMarkers.forEach(marker => {
+          const name = marker.name.toLowerCase();
+          const desc = (marker.description || '').toLowerCase();
+          const match = name.includes(keyword) || desc.includes(keyword);
+          marker.setVisible(match);
+          if (!match && marker.infoWindow) marker.infoWindow.close();
+        });
+      });
+
     }
   </script>
 
