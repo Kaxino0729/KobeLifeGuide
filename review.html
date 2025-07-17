@@ -1,0 +1,113 @@
+<!-- 文件名：review.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コメント - 留学生の声</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1em;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    form {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 1em;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+    }
+    input, textarea, button {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 8px;
+      font-size: 1em;
+    }
+    .comment-list {
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    .comment {
+      border-bottom: 1px solid #ddd;
+      padding: 10px 0;
+    }
+    .comment .name {
+      font-weight: bold;
+      color: #0a66c2;
+    }
+    .navbar {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .navbar .btn {
+      margin: 0 8px;
+      text-decoration: none;
+      color: white;
+      background-color: #0a66c2;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>💬 留学生のコメント</h1>
+
+  <nav class="navbar">
+    <a href="index.html" class="btn">🏠 ホーム</a>
+    <a href="procedure.html" class="btn">📄 手続きガイド</a>
+    <a href="map.html" class="btn">🗺️ マップ</a>
+    <a href="review.html" class="btn">⭐ レビュー</a>
+  </nav>
+
+  <form id="commentForm">
+    <label for="name">お名前（任意）</label>
+    <input type="text" id="name" placeholder="例：リュウさん">
+
+    <label for="comment">コメント内容</label>
+    <textarea id="comment" rows="4" placeholder="生活の悩みや、便利だったことなどを教えてください"></textarea>
+
+    <button type="submit">送信</button>
+  </form>
+
+  <section class="comment-list" id="commentList"></section>
+
+  <script>
+    const form = document.getElementById("commentForm");
+    const commentList = document.getElementById("commentList");
+
+    const saveComment = (name, comment) => {
+      const data = JSON.parse(localStorage.getItem("comments") || "[]");
+      data.unshift({ name, comment, time: new Date().toLocaleString() });
+      localStorage.setItem("comments", JSON.stringify(data));
+    };
+
+    const renderComments = () => {
+      const data = JSON.parse(localStorage.getItem("comments") || "[]");
+      commentList.innerHTML = data.map(c => `
+        <div class="comment">
+          <div class="name">🧑 ${c.name || "匿名"} <span style="font-weight:normal; color:#999; font-size:12px;">（${c.time}）</span></div>
+          <div class="text">${c.comment}</div>
+        </div>
+      `).join("");
+    };
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const comment = document.getElementById("comment").value.trim();
+      if (!comment) return alert("コメント内容を入力してください。");
+      saveComment(name, comment);
+      form.reset();
+      renderComments();
+    });
+
+    renderComments();
+  </script>
+</body>
+</html>
