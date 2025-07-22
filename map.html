@@ -1,117 +1,121 @@
-<!-- 文件名: map.html -->
+<!-- 整合版：map.html（Google 表格加载 + Firebase 评论） -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>マップ - 店舗情報</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+  <title>店铺地图</title>
   <style>
-    #map {
-      height: 500px;
-      width: 90%;
-      margin: 20px auto;
-      border: 1px solid #ccc;
-      border-radius: 10px;
+    body { font-family: sans-serif; margin: 0; }
+    #map { width: 100%; height: 500px; }
+    #comment-box {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      width: 100%;
+      background: #fff;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+      transition: bottom 0.4s;
+      padding: 1em;
+      z-index: 999;
     }
-    #searchBox {
-      width:80%;
-      max-width:400px;
-      margin:10px auto;
-      display:block;
-      padding:8px 10px;
-      border-radius:8px;
-      border:1px solid #999;
-      font-size:16px;
-    }
+    #comment-box.active { bottom: 0; }
+    #comments { max-height: 150px; overflow-y: auto; margin-top: 10px; }
+    .comment { border-top: 1px solid #ddd; padding: 5px 0; }
   </style>
-
-
 </head>
 <body>
-  <header>
-    <h1>🗺️ 神戸周辺マップ</h1>
-    <nav class="navbar">
-      <a href="index.html" class="btn">🏠 ホーム</a>
-      <a href="procedure.html" class="btn">📄 手続きガイド</a>
-      <a href="map.html" class="btn">🗺️ マップ</a>
-      <a href="review.html" class="btn">⭐ レビュー</a>
-    </nav>
-  </header>
+  <h2 style="text-align:center;margin:10px 0;">神戸生活ガイドマップ</h2>
+  <div id="map"></div>
 
-  <main>
-    <section class="intro">
-      <h2>📍 おすすめのお店</h2>
-      <p>神戸・三宮周辺の便利なお店や施設を地図でご紹介します。</p>
-      <input type="text" id="searchBox" placeholder="店名・キーワードで検索...">
-    </section>
-    <div id="map"></div>
-  </main>
+  <div id="comment-box">
+    <h2 id="shop-name">店名</h2>
+    <form id="comment-form">
+      <input type="text" id="username" placeholder="お名前（任意）"><br>
+      <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
+      <button type="submit">送信</button>
+    </form>
+    <div id="comments"></div>
+  </div>
 
-  <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
-  </footer>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <!-- papaparse  csvlink  用于csv文件读取-->
-
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <script>
-    let allMarkers = [];
-
-    function initMap() {
-      const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅  中心
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15,
-        center: center
-      });
-
-      const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
-      // csv文件地址
-      Papa.parse(csvUrl, {
-        download: true,
-        header: true,
-        complete: function(results) {
-          allMarkers = results.data.map(place => {
-            if (!place.lat || !place.lng) return;
-
-            const marker = new google.maps.Marker({
-              position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) },
-              map: map
-            });
-
-            const infoWindow = new google.maps.InfoWindow({
-              content: `<strong>${place.name}</strong><br>${place.description || ''}`
-            });
-
-            marker.addListener("click", () => {
-              infoWindow.open(map, marker);
-            });
-
-            marker.name = place.name;
-            marker.description = place.description;
-            marker.infoWindow = infoWindow;
-            return marker;
-
-          }).filter(m => m !== null);
-        }
-      });
-      document.getElementById("searchBox").addEventListener("input", function(e) {
-        const keyword = e.target.value.toLowerCase();
-        allMarkers.forEach(marker => {
-          const name = marker.name.toLowerCase();
-          const desc = (marker.description || '').toLowerCase();
-          const match = name.includes(keyword) || desc.includes(keyword);
-          marker.setVisible(match);
-          if (!match && marker.infoWindow) marker.infoWindow.close();
-        });
-      });
-
-    }
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+      authDomain: "kobe-life-guide.firebaseapp.com",
+      projectId: "kobe-life-guide",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
+      messagingSenderId: "440390213094",
+      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
   </script>
 
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
-  <!-- google maps api -->
+  <!-- Google Maps JS -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap" async defer></script>
+
+  <script>
+    let currentShopId = null;
+
+    function initMap() {
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 34.6913, lng: 135.1955 },
+        zoom: 15
+      });
+
+      fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv")
+        .then(response => response.text())
+        .then(csv => {
+          const rows = csv.split("\n").slice(1);
+          rows.forEach(row => {
+            const [name, lat, lng, id] = row.split(",");
+            if (!name || !lat || !lng || !id) return;
+            const marker = new google.maps.Marker({
+              position: { lat: parseFloat(lat), lng: parseFloat(lng) },
+              map,
+              title: name
+            });
+            marker.addListener("click", () => {
+              currentShopId = id.trim();
+              document.getElementById("shop-name").textContent = name;
+              document.getElementById("comment-box").classList.add("active");
+              loadComments(currentShopId);
+            });
+          });
+        });
+    }
+
+    function loadComments(shopId) {
+      const container = document.getElementById("comments");
+      container.innerHTML = "<small>読み込み中...</small>";
+      db.collection("shops").doc(shopId).collection("comments").orderBy("time", "desc").get()
+        .then(snapshot => {
+          container.innerHTML = "";
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const el = document.createElement("div");
+            el.className = "comment";
+            el.innerHTML = `<strong>${data.name || "匿名"}</strong><br>${data.text}`;
+            container.appendChild(el);
+          });
+        });
+    }
+
+    document.getElementById("comment-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const name = document.getElementById("username").value.trim();
+      const text = document.getElementById("usercomment").value.trim();
+      if (!text || !currentShopId) return;
+      db.collection("shops").doc(currentShopId).collection("comments").add({
+        name, text, time: new Date()
+      }).then(() => {
+        document.getElementById("usercomment").value = "";
+        loadComments(currentShopId);
+      });
+    });
+  </script>
 </body>
 </html>
