@@ -1,4 +1,4 @@
-<!-- 修复 Firebase SDK 报错 + 调试输出的最终版 map.html -->
+<!-- map.html：评论实时刷新 + 时间显示 + 提交后收起评价框 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -117,6 +117,7 @@
   <script>
     let allMarkers = [];
     let currentShopId = null;
+    let unsubscribe = null;
 
     function initMap() {
       const center = { lat: 34.6951, lng: 135.1955 };
@@ -186,12 +187,16 @@
       document.getElementById("comment-box").classList.remove("active");
     });
 
-    // 加载评论
+    // 实时加载评论
     function loadComments(shopId) {
       const container = document.getElementById("comments");
       container.innerHTML = "<small>正在加载评论...</small>";
-      db.collection("shops").doc(shopId).collection("comments").orderBy("time", "desc").get()
-        .then(snapshot => {
+      if (unsubscribe) unsubscribe(); // 取消上一次监听
+
+      unsubscribe = db.collection("shops").doc(shopId)
+        .collection("comments")
+        .orderBy("time", "desc")
+        .onSnapshot(snapshot => {
           if (snapshot.empty) {
             container.innerHTML = "<small>暂无评论，快来写一条吧！</small>";
             return;
@@ -199,15 +204,20 @@
           container.innerHTML = "";
           snapshot.forEach(doc => {
             const data = doc.data();
+            const t = data.time?.toDate ? data.time.toDate() : new Date();
+            const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+
             const el = document.createElement("div");
             el.className = "comment";
-            el.innerHTML = `<strong>${data.name || "匿名"}</strong><br>${data.text}`;
+            el.style.background = "#f8faff";
+            el.style.marginBottom = "5px";
+            el.style.padding = "5px";
+            el.innerHTML = `<strong>${data.name || "匿名"}</strong> <small style='color:#666;'>(${timeStr})</small><br>${data.text}`;
             container.appendChild(el);
           });
-        })
-        .catch(err => {
-          container.innerHTML = `<small style='color:red;'>加载评论出错：${err.message}</small>`;
-          console.error("加载评论出错：", err);
+        }, err => {
+          container.innerHTML = `<small style='color:red;'>监听评论出错：${err.message}</small>`;
+          console.error("监听评论出错：", err);
         });
     }
 
@@ -221,24 +231,26 @@
         return;
       }
 
-    db.collection("shops").doc(currentShopId)
-      .collection("comments")
-      .doc() // 自动生成一个ID
-      .set({
-        name: name || "匿名",
-        text: text,
-        time: new Date()
-      })
-      .then(() => {
-        document.getElementById("usercomment").value = "";
-        alert("评论已提交！");
-        console.log("✅ 成功写入评论到店铺：", currentShopId);
-        loadComments(currentShopId);
-      })
-      .catch(err => {
-        alert("评论提交失败：" + err.message);
-        console.error("评论提交失败：", err);
-      });
+      db.collection("shops").doc(currentShopId)
+        .collection("comments")
+        .doc()
+        .set({
+          name: name || "匿名",
+          text: text,
+          time: new Date()
+        })
+        .then(() => {
+          alert("评论已提交！");
+          console.log("✅ 成功写入评论到店铺：", currentShopId);
+          document.getElementById("usercomment").value = "";
+          document.getElementById("username").value = "";
+          // 提交后收起评论框
+          document.getElementById("comment-box").classList.remove("active");
+        })
+        .catch(err => {
+          alert("评论提交失败：" + err.message);
+          console.error("评论提交失败：", err);
+        });
     });
   </script>
 
