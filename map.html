@@ -221,19 +221,24 @@
         return;
       }
 
-      db.collection("shops").doc(currentShopId).collection("comments").add({
-        name, text, time: new Date()
+    db.collection("shops").doc(currentShopId)
+      .collection("comments")
+      .doc() // 自动生成一个ID
+      .set({
+        name: name || "匿名",
+        text: text,
+        time: new Date()
       })
-        .then(() => {
-          document.getElementById("usercomment").value = "";
-          alert("评论已提交！");
-          console.log("✅ 成功写入评论到店铺：", currentShopId);
-          loadComments(currentShopId);
-        })
-        .catch(err => {
-          alert("评论提交失败：" + err.message);
-          console.error("评论提交失败：", err);
-        });
+      .then(() => {
+        document.getElementById("usercomment").value = "";
+        alert("评论已提交！");
+        console.log("✅ 成功写入评论到店铺：", currentShopId);
+        loadComments(currentShopId);
+      })
+      .catch(err => {
+        alert("评论提交失败：" + err.message);
+        console.error("评论提交失败：", err);
+      });
     });
   </script>
 
