@@ -1,4 +1,4 @@
-<!-- 修复和优化交互后的最终整合版 map.html -->
+<!-- 修复 Firebase SDK 报错 + 调试输出的最终版 map.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -95,9 +95,9 @@
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-  <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>  
+  <!-- Firebase SDK compat 版本 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
@@ -110,7 +110,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     console.log("🔥 Firebase 初始化成功");
-    
+    console.log("✅ Firestore 实例创建成功：", db);
   </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -227,7 +227,7 @@
         .then(() => {
           document.getElementById("usercomment").value = "";
           alert("评论已提交！");
-          console.log("评论提交成功到店铺ID：", currentShopId);
+          console.log("✅ 成功写入评论到店铺：", currentShopId);
           loadComments(currentShopId);
         })
         .catch(err => {
