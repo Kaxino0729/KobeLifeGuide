@@ -53,8 +53,35 @@
       z-index: 999;
     }
     #comment-box.active { bottom: 0; }
-    #comments { max-height: 150px; overflow-y: auto; margin-top: 10px; }
-    .comment { border-top: 1px solid #ddd; padding: 5px 0; }
+    #comments { max-height: 200px; overflow-y: auto; margin-top: 10px; }
+    .comment {
+      border-top: 1px solid #ddd;
+      background: #f8faff;
+      margin-bottom: 5px;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    .stars {
+      color: #ffc107;
+      font-size: 16px;
+      margin-top: 4px;
+    }
+    .star-input {
+      font-size: 20px;
+      color: #ccc;
+      cursor: pointer;
+    }
+    .star-input.selected {
+      color: #ffc107;
+    }
+    #loadMore {
+      background: #eee;
+      border: none;
+      padding: 6px 12px;
+      margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -77,7 +104,7 @@
     <div id="map"></div>
   </main>
 
-  <!-- 评论框 -->
+  <!-- 评论弹窗 -->
   <div id="comment-box">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h2 id="shop-name">店名</h2>
@@ -86,16 +113,24 @@
     <form id="comment-form">
       <input type="text" id="username" placeholder="お名前（任意）"><br>
       <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
+      <div id="rating-stars">
+        <span class="star-input" data-value="1">★</span>
+        <span class="star-input" data-value="2">★</span>
+        <span class="star-input" data-value="3">★</span>
+        <span class="star-input" data-value="4">★</span>
+        <span class="star-input" data-value="5">★</span>
+      </div>
       <button type="submit">送信</button>
     </form>
     <div id="comments"></div>
+    <button id="loadMore" style="display:none">もっと見る</button>
   </div>
 
   <footer>
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-  <!-- Firebase SDK compat 版本 -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
@@ -109,148 +144,114 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    console.log("🔥 Firebase 初始化成功");
-    console.log("✅ Firestore 实例创建成功：", db);
   </script>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
-    let allMarkers = [];
-    let currentShopId = null;
-    let unsubscribe = null;
+    let allMarkers = [], currentShopId = null, lastVisible = null, selectedRating = 0;
 
     function initMap() {
       const center = { lat: 34.6951, lng: 135.1955 };
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15,
-        center: center
-      });
+      const map = new google.maps.Map(document.getElementById("map"), { zoom: 15, center });
 
-      const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
-      Papa.parse(csvUrl, {
+      Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv", {
         download: true,
         header: true,
-        complete: function(results) {
-          allMarkers = results.data.map(place => {
+        complete: ({data}) => {
+          allMarkers = data.map(place => {
             if (!place.lat || !place.lng) return null;
-
-            const contentParts = [`<strong>${place.name}</strong>`];
-            if (place.description) contentParts.push(`<br>${place.description}`);
-            if (place.image) contentParts.push(`<br><img class='info-img' src='${place.image}' alt='画像'>`);
-            if (place.link) contentParts.push(`<br><a class='info-link' href='${place.link}' target='_blank'>▶️ 詳しく見る</a>`);
-
             const marker = new google.maps.Marker({
               position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) },
-              map: map
+              map
             });
-
             const infoWindow = new google.maps.InfoWindow({
-              content: contentParts.join('')
+              content: `<strong>${place.name}</strong><br>${place.description || ''}`
             });
-
             marker.addListener("click", () => {
               infoWindow.open(map, marker);
               currentShopId = place.id || place.name;
               document.getElementById("shop-name").textContent = place.name;
               document.getElementById("comment-box").classList.add("active");
-              loadComments(currentShopId);
+              document.getElementById("comments").innerHTML = "<small>読み込み中...</small>";
+              loadComments(true);
             });
-
             marker.name = place.name;
             marker.description = place.description;
             marker.infoWindow = infoWindow;
             return marker;
-          }).filter(m => m !== null);
+          }).filter(m => m);
         }
       });
 
-      // 搜索功能
-      document.getElementById("searchBox").addEventListener("input", function(e) {
+      document.getElementById("searchBox").addEventListener("input", e => {
         const keyword = e.target.value.toLowerCase();
         allMarkers.forEach(marker => {
-          const name = marker.name.toLowerCase();
-          const desc = (marker.description || '').toLowerCase();
-          const match = name.includes(keyword) || desc.includes(keyword);
+          const match = marker.name.toLowerCase().includes(keyword) || (marker.description || '').toLowerCase().includes(keyword);
           marker.setVisible(match);
           if (!match && marker.infoWindow) marker.infoWindow.close();
         });
       });
 
-      // 点击地图空白处关闭评论框
-      map.addListener("click", () => {
-        document.getElementById("comment-box").classList.remove("active");
+      map.addListener("click", () => document.getElementById("comment-box").classList.remove("active"));
+    }
+
+    document.getElementById("close-btn").onclick = () => document.getElementById("comment-box").classList.remove("active");
+
+    function loadComments(reset = false) {
+      const ref = db.collection("shops").doc(currentShopId).collection("comments").orderBy("time", "desc").limit(5);
+      let query = reset ? ref : ref.startAfter(lastVisible);
+      query.get().then(snapshot => {
+        const container = document.getElementById("comments");
+        if (reset) container.innerHTML = "";
+        if (snapshot.empty) {
+          document.getElementById("loadMore").style.display = "none";
+          if (reset) container.innerHTML = "<small>コメントがまだありません。</small>";
+          return;
+        }
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const t = data.time?.toDate?.() || new Date();
+          const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+          const stars = "★".repeat(data.rating || 0) + "☆".repeat(5 - (data.rating || 0));
+          const div = document.createElement("div");
+          div.className = "comment";
+          div.innerHTML = `<strong>${data.name || "匿名"}</strong> <small>（${timeStr}）</small><br><div class='stars'>${stars}</div>${data.text}`;
+          container.appendChild(div);
+        });
+        lastVisible = snapshot.docs[snapshot.docs.length - 1];
+        document.getElementById("loadMore").style.display = snapshot.size < 5 ? "none" : "block";
       });
     }
 
-    // 关闭按钮逻辑
-    document.getElementById("close-btn").addEventListener("click", () => {
-      document.getElementById("comment-box").classList.remove("active");
+    document.getElementById("loadMore").onclick = () => loadComments();
+
+    document.querySelectorAll(".star-input").forEach(star => {
+      star.addEventListener("click", () => {
+        selectedRating = parseInt(star.dataset.value);
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        for (let i = 1; i <= selectedRating; i++) {
+          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
+        }
+      });
     });
 
-    // 实时加载评论
-    function loadComments(shopId) {
-      const container = document.getElementById("comments");
-      container.innerHTML = "<small>正在加载评论...</small>";
-      if (unsubscribe) unsubscribe(); // 取消上一次监听
-
-      unsubscribe = db.collection("shops").doc(shopId)
-        .collection("comments")
-        .orderBy("time", "desc")
-        .onSnapshot(snapshot => {
-          if (snapshot.empty) {
-            container.innerHTML = "<small>暂无评论，快来写一条吧！</small>";
-            return;
-          }
-          container.innerHTML = "";
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const t = data.time?.toDate ? data.time.toDate() : new Date();
-            const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
-
-            const el = document.createElement("div");
-            el.className = "comment";
-            el.style.background = "#f8faff";
-            el.style.marginBottom = "5px";
-            el.style.padding = "5px";
-            el.innerHTML = `<strong>${data.name || "匿名"}</strong> <small style='color:#666;'>(${timeStr})</small><br>${data.text}`;
-            container.appendChild(el);
-          });
-        }, err => {
-          container.innerHTML = `<small style='color:red;'>监听评论出错：${err.message}</small>`;
-          console.error("监听评论出错：", err);
-        });
-    }
-
-    // 提交评论
     document.getElementById("comment-form").addEventListener("submit", e => {
       e.preventDefault();
       const name = document.getElementById("username").value.trim();
       const text = document.getElementById("usercomment").value.trim();
-      if (!text || !currentShopId) {
-        alert("请输入评论内容");
-        return;
-      }
-
-      db.collection("shops").doc(currentShopId)
-        .collection("comments")
-        .doc()
-        .set({
-          name: name || "匿名",
-          text: text,
-          time: new Date()
-        })
-        .then(() => {
-          alert("评论已提交！");
-          console.log("✅ 成功写入评论到店铺：", currentShopId);
-          document.getElementById("usercomment").value = "";
-          document.getElementById("username").value = "";
-          // 提交后收起评论框
-          document.getElementById("comment-box").classList.remove("active");
-        })
-        .catch(err => {
-          alert("评论提交失败：" + err.message);
-          console.error("评论提交失败：", err);
-        });
+      if (!text || !currentShopId) return alert("コメントを入力してください。");
+      db.collection("shops").doc(currentShopId).collection("comments").add({
+        name: name || "匿名",
+        text,
+        rating: selectedRating,
+        time: new Date()
+      }).then(() => {
+        document.getElementById("usercomment").value = "";
+        document.getElementById("username").value = "";
+        selectedRating = 0;
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        alert("コメントが送信されました。");
+        loadComments(true);
+      });
     });
   </script>
 
