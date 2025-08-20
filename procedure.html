@@ -1,16 +1,15 @@
-<!-- 文件名: procedure.html -->
+<!-- 文件名: review.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>手続きガイド</title>
+  <title>レビュー・フィードバック</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <header>
-    <h1>📄 手続きガイド（手续指南）</h1>
+    <h1>⭐ レビュー・フィードバック</h1>
     <nav class="navbar">
       <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
@@ -21,51 +20,46 @@
 
   <main>
     <section class="intro">
-      <h2>📝 主要な手続き一覧</h2>
-      <p>留学生にとって最初に必要となる手続きの情報をまとめています。</p>
+      <h2>💬 あなたの声をお聞かせください</h2>
+      <p>サイトや生活情報についてのご意見・ご感想をお待ちしています。</p>
     </section>
 
-    <section class="cards">
-      <div class="card">
-        <i class="fas fa-sim-card icon"></i>
-        <h3>SIMカードの契約</h3>
-        <ol class="guide-list">
-          <li>パスポートと在留カードを準備</li>
-          <li>通信会社を選ぶ（例：楽天、Y!mobile）</li>
-          <li>申し込みフォーム入力</li>
-          <li>本人確認とSIM受け取り</li>
-          <li>スマホに挿入して設定</li>
-        </ol>
-      </div>
+    <section class="feedback-form">
+      <form id="feedbackForm">
+        <label for="name">お名前（任意）:</label>
+        <input type="text" id="name" name="name" placeholder="例：山田太郎">
 
-      <div class="card">
-        <i class="fas fa-house icon"></i>
-        <h3>賃貸契約の流れ</h3>
-        <ol class="guide-list">
-          <li>不動産サイトで物件検索</li>
-          <li>内見予約 → 実際に見学</li>
-          <li>保証人や初期費用の確認</li>
-          <li>契約書類の提出と審査</li>
-          <li>鍵の受け取りと入居開始</li>
-        </ol>
-      </div>
+        <label for="message">ご意見・ご感想:</label>
+        <textarea id="message" name="message" rows="5" placeholder="ご自由にお書きください"></textarea>
 
-      <div class="card">
-        <i class="fas fa-university icon"></i>
-        <h3>銀行口座の開設</h3>
-        <ol class="guide-list">
-          <li>在留カード・学生証を準備</li>
-          <li>銀行窓口またはネットで申請</li>
-          <li>印鑑が必要な場合あり</li>
-          <li>本人確認 → 口座番号発行</li>
-          <li>キャッシュカードの受け取り</li>
-        </ol>
-      </div>
+        <button type="submit" class="btn-submit">送信</button>
+      </form>
+
+      <div id="feedbackResult"></div>
     </section>
   </main>
 
   <footer>
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
+
+  <script>
+    document.getElementById("feedbackForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const name = document.getElementById("name").value || "匿名";
+      const message = document.getElementById("message").value;
+
+      if (!message) {
+        alert("メッセージを入力してください");
+        return;
+      }
+
+      document.getElementById("feedbackResult").innerHTML =
+        `<p>✅ フィードバックを受け付けました。ありがとうございました！<br>
+         <strong>${name}</strong>: ${message}</p>`;
+
+      document.getElementById("feedbackForm").reset();
+    });
+  </script>
 </body>
 </html>
