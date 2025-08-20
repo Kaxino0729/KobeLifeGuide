@@ -1,99 +1,242 @@
+/* ========== 全体基本設定 ========== */
 body {
-  font-family: 'Arial', sans-serif;
-  background-color: #f9f9f9;
-  color: #333;
+  font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   margin: 0;
   padding: 0;
+  background-color: #fafafa;
+  color: #333;
+  line-height: 1.6;
 }
 
+h1, h2, h3 {
+  color: #222;
+  margin: 0.5em 0;
+}
+
+p {
+  margin: 0.5em 0 1.2em;
+}
+
+a {
+  color: #0a66c2;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ========== ヘッダー & ナビゲーション ========== */
 header {
-  background-color: #0077b6;
+  background: linear-gradient(90deg, #0a66c2, #0073e6);
   color: white;
-  padding: 20px;
+  padding: 15px 20px;
   text-align: center;
+}
+
+header h1 {
+  font-size: 1.8em;
+  margin-bottom: 8px;
 }
 
 .navbar {
   margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
 }
 
-.btn {
+.navbar .btn {
+  display: inline-block;
+  margin: 5px 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
   background-color: white;
-  color: #0077b6;
-  padding: 8px 15px;
-  border-radius: 20px;
-  text-decoration: none;
+  color: #0a66c2;
   font-weight: bold;
-  border: 2px solid white;
   transition: 0.3s;
 }
 
-.btn:hover {
-  background-color: #023e8a;
-  color: white;
-  border: 2px solid #023e8a;
+.navbar .btn:hover {
+  background-color: #f0f0f0;
 }
 
+/* ========== 共通セクションスタイル ========== */
 main {
-  padding: 30px;
-  text-align: center;
+  padding: 20px;
 }
 
 .intro {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-.cards {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+/* ========== 手続きガイド (procedure.html) ========== */
+.procedure-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-.card {
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 15px;
-  padding: 20px;
-  width: 250px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  transition: transform 0.2s;
-}
-
-.card:hover {
-  transform: scale(1.05);
-}
-
-.icon {
-  font-size: 40px;
-  margin-bottom: 10px;
-  color: #0077b6;
-}
-
-footer {
-  text-align: center;
-  background-color: #eee;
+.procedure-item {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   padding: 15px;
-  margin-top: 40px;
+  transition: 0.2s;
+}
+
+.procedure-item:hover {
+  transform: translateY(-3px);
+}
+
+/* ========== マップページ (map.html) ========== */
+#map {
+  height: 500px;
+  width: 90%;
+  margin: 20px auto;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+}
+
+#searchBox {
+  width: 80%;
+  max-width: 400px;
+  margin: 10px auto;
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #999;
+  font-size: 16px;
+}
+
+.info-img {
+  width: 100%;
+  max-width: 150px;
+  margin-top: 6px;
+  border-radius: 5px;
+}
+
+.info-link {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #0a66c2;
+  color: white;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* 評価スライドパネル */
+#commentPanel {
+  position: fixed;
+  bottom: -100%;
+  left: 0;
+  width: 100%;
+  max-height: 70%;
+  background: #fff;
+  border-top: 2px solid #0a66c2;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.3);
+  padding: 15px;
+  transition: bottom 0.4s ease-in-out;
+  overflow-y: auto;
+  z-index: 2000;
+}
+
+#commentPanel.open {
+  bottom: 0;
+}
+
+.comment-item {
+  border-bottom: 1px solid #ddd;
+  padding: 8px 0;
+}
+
+.star-rating {
+  color: #f5c518;
   font-size: 14px;
 }
 
-/* 📱 モバイル対応 */
-@media screen and (max-width: 600px) {
-  .card {
-    width: 90%;
+/* ページネーション */
+.pagination {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.pagination button {
+  margin: 0 4px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+
+.pagination button:hover {
+  background: #eee;
+}
+
+/* ========== フィードバックページ (review.html) ========== */
+.feedback-form {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.feedback-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.feedback-form input,
+.feedback-form textarea {
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #aaa;
+  font-size: 14px;
+}
+
+.btn-submit {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background: #0a66c2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: 0.3s;
+}
+
+.btn-submit:hover {
+  background: #004a99;
+}
+
+/* ========== フッター ========== */
+footer {
+  margin-top: 30px;
+  background: #f2f2f2;
+  text-align: center;
+  padding: 12px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ========== レスポンシブ対応 ========== */
+@media (max-width: 768px) {
+  .procedure-list {
+    grid-template-columns: 1fr;
   }
-  nav.navbar {
-    flex-direction: column;
+  #map {
+    height: 400px;
+    width: 100%;
   }
-  .btn {
-    margin: 5px 0;
-    width: 80%;
-    text-align: center;
+  header h1 {
+    font-size: 1.4em;
   }
 }
