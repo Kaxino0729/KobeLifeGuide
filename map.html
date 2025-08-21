@@ -1,4 +1,4 @@
-<!-- 文件名: map.html -->
+<!-- map.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -26,172 +26,159 @@
       <input type="text" id="searchBox" placeholder="店名・キーワードで検索...">
     </section>
     <div id="map"></div>
-
-    <!-- 店舗詳細 & コメント欄（下からスライド表示） -->
-    <div id="storeDetail" class="store-detail">
-      <div class="store-header">
-        <h3 id="storeName"></h3>
-        <button id="closeDetail" class="close-btn">✖</button>
-      </div>
-      <div id="storeInfo"></div>
-
-      <div class="comment-section">
-        <h4>レビューを書く</h4>
-        <form id="commentForm">
-          <input type="text" id="userName" placeholder="名前を入力" required>
-          <textarea id="userComment" placeholder="コメントを入力" required></textarea>
-
-          <!-- 星評価 -->
-          <div class="star-rating">
-            <span data-value="5">★</span>
-            <span data-value="4">★</span>
-            <span data-value="3">★</span>
-            <span data-value="2">★</span>
-            <span data-value="1">★</span>
-          </div>
-          <input type="hidden" id="rating" value="0">
-
-          <button type="submit">送信</button>
-        </form>
-      </div>
-
-      <div class="comment-list">
-        <h4>レビュー一覧</h4>
-        <div id="comments"></div>
-        <button id="loadMoreBtn" style="display:none;">もっと見る</button>
-      </div>
-    </div>
   </main>
+
+  <!-- 评论弹窗 -->
+  <div id="comment-box">
+    <div class="store-header">
+      <h2 id="shop-name">店名</h2>
+      <button id="close-btn" class="close-btn" title="閉じる">✖</button>
+    </div>
+    <form id="comment-form">
+      <input type="text" id="username" placeholder="お名前（任意）"><br>
+      <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
+      <div id="rating-stars" class="star-rating">
+        <span class="star-input" data-value="1">★</span>
+        <span class="star-input" data-value="2">★</span>
+        <span class="star-input" data-value="3">★</span>
+        <span class="star-input" data-value="4">★</span>
+        <span class="star-input" data-value="5">★</span>
+      </div>
+      <button type="submit" class="btn-submit">送信</button>
+    </form>
+    <div id="comments"></div>
+    <button id="loadMore" style="display:none">もっと見る</button>
+  </div>
 
   <footer>
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-   <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
-    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
       projectId: "kobe-life-guide",
-      storageBucket: "kobe-life-guide.appspot.com",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
       messagingSenderId: "440390213094",
       appId: "1:440390213094:web:508d4e03409ca338b54a27"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+  </script>
 
-    let allMarkers = [];
-    let currentStoreId = null;
-    let lastVisible = null; // 分页用
+  <!-- CSV 解析 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script>
+    let allMarkers = [], currentShopId = null, lastVisible = null, selectedRating = 0;
 
     function initMap() {
-      const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15, center: center
-      });
+      const center = { lat: 34.6951, lng: 135.1955 };
+      const map = new google.maps.Map(document.getElementById("map"), { zoom: 15, center });
 
-      const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
-      Papa.parse(csvUrl, {
-        download: true, header: true,
-        complete: function(results) {
-          allMarkers = results.data.map(place => {
+      Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv", {
+        download: true,
+        header: true,
+        complete: ({data}) => {
+          allMarkers = data.map(place => {
             if (!place.lat || !place.lng) return null;
             const marker = new google.maps.Marker({
-              position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) }, map: map
+              position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) },
+              map
+            });
+            const infoWindow = new google.maps.InfoWindow({
+              content: `<strong>${place.name}</strong><br>${place.description || ''}`
             });
             marker.addListener("click", () => {
-              currentStoreId = place.name;
-              document.getElementById("storeName").textContent = place.name;
-              document.getElementById("storeInfo").innerHTML =
-                `${place.description || ''}<br>${place.link ? `<a href="${place.link}" target="_blank">▶ 詳しく見る</a>` : ''}`;
-              document.getElementById("storeDetail").classList.add("active");
+              infoWindow.open(map, marker);
+              currentShopId = place.id || place.name;
+              document.getElementById("shop-name").textContent = place.name;
+              document.getElementById("comment-box").classList.add("active");
+              document.getElementById("comments").innerHTML = "<small>読み込み中...</small>";
               loadComments(true);
             });
             marker.name = place.name;
             marker.description = place.description;
+            marker.infoWindow = infoWindow;
             return marker;
-          }).filter(m => m !== null);
+          }).filter(m => m);
         }
       });
 
-      document.getElementById("searchBox").addEventListener("input", function(e) {
+      document.getElementById("searchBox").addEventListener("input", e => {
         const keyword = e.target.value.toLowerCase();
         allMarkers.forEach(marker => {
-          const name = marker.name.toLowerCase();
-          const desc = (marker.description || '').toLowerCase();
-          const match = name.includes(keyword) || desc.includes(keyword);
+          const match = marker.name.toLowerCase().includes(keyword) || (marker.description || '').toLowerCase().includes(keyword);
           marker.setVisible(match);
+          if (!match && marker.infoWindow) marker.infoWindow.close();
         });
       });
+
+      map.addListener("click", () => document.getElementById("comment-box").classList.remove("active"));
     }
 
-    // 评论加载
-    function loadComments(reset=false) {
-      if (!currentStoreId) return;
-      const commentsDiv = document.getElementById("comments");
-      if (reset) { commentsDiv.innerHTML = ""; lastVisible = null; }
+    document.getElementById("close-btn").onclick = () => document.getElementById("comment-box").classList.remove("active");
 
-      let query = db.collection("comments")
-        .where("storeId","==",currentStoreId)
-        .orderBy("time","desc").limit(5);
-
-      if (lastVisible) query = query.startAfter(lastVisible);
-
+    function loadComments(reset = false) {
+      const ref = db.collection("shops").doc(currentShopId).collection("comments").orderBy("time", "desc").limit(5);
+      let query = reset ? ref : ref.startAfter(lastVisible);
       query.get().then(snapshot => {
-        if (!snapshot.empty) {
-          lastVisible = snapshot.docs[snapshot.docs.length-1];
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const stars = "★".repeat(data.rating||0) + "☆".repeat(5-(data.rating||0));
-            const commentEl = document.createElement("div");
-            commentEl.classList.add("comment-item");
-            commentEl.innerHTML =
-              `<p><strong>${data.name}</strong> (${new Date(data.time?.toDate()).toLocaleString()})</p>
-               <p>${stars}</p>
-               <p>${data.text}</p>`;
-            commentsDiv.appendChild(commentEl);
-          });
-          document.getElementById("loadMoreBtn").style.display = "block";
-        } else {
-          document.getElementById("loadMoreBtn").style.display = "none";
+        const container = document.getElementById("comments");
+        if (reset) container.innerHTML = "";
+        if (snapshot.empty) {
+          document.getElementById("loadMore").style.display = "none";
+          if (reset) container.innerHTML = "<small>コメントがまだありません。</small>";
+          return;
         }
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const t = data.time?.toDate?.() || new Date();
+          const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+          const stars = "★".repeat(data.rating || 0) + "☆".repeat(5 - (data.rating || 0));
+          const div = document.createElement("div");
+          div.className = "comment";
+          div.innerHTML = `<strong>${data.name || "匿名"}</strong> <small>（${timeStr}）</small><br><div class='stars'>${stars}</div>${data.text}`;
+          container.appendChild(div);
+        });
+        lastVisible = snapshot.docs[snapshot.docs.length - 1];
+        document.getElementById("loadMore").style.display = snapshot.size < 5 ? "none" : "block";
       });
     }
 
-    // 提交评论
-    document.getElementById("commentForm").addEventListener("submit", function(e){
+    document.getElementById("loadMore").onclick = () => loadComments();
+
+    document.querySelectorAll(".star-input").forEach(star => {
+      star.addEventListener("click", () => {
+        selectedRating = parseInt(star.dataset.value);
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        for (let i = 1; i <= selectedRating; i++) {
+          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
+        }
+      });
+    });
+
+    document.getElementById("comment-form").addEventListener("submit", e => {
       e.preventDefault();
-      const name = document.getElementById("userName").value;
-      const text = document.getElementById("userComment").value;
-      const rating = parseInt(document.getElementById("rating").value) || 0;
-      if (!currentStoreId) return;
-      db.collection("comments").add({
-        storeId: currentStoreId, name: name, text: text,
-        rating: rating, time: new Date()
-      }).then(()=>{
-        alert("レビューを送信しました！");
-        document.getElementById("commentForm").reset();
-        document.getElementById("rating").value = 0;
+      const name = document.getElementById("username").value.trim();
+      const text = document.getElementById("usercomment").value.trim();
+      if (!text || !currentShopId) return alert("コメントを入力してください。");
+      db.collection("shops").doc(currentShopId).collection("comments").add({
+        name: name || "匿名",
+        text,
+        rating: selectedRating,
+        time: new Date()
+      }).then(() => {
+        document.getElementById("usercomment").value = "";
+        document.getElementById("username").value = "";
+        selectedRating = 0;
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        alert("コメントが送信されました。");
         loadComments(true);
       });
     });
-
-    // 星级评分选择
-    document.querySelectorAll(".star-rating span").forEach(star => {
-      star.addEventListener("click", () => {
-        document.getElementById("rating").value = star.dataset.value;
-        document.querySelectorAll(".star-rating span").forEach(s=>s.classList.remove("active"));
-        star.classList.add("active");
-      });
-    });
-
-    document.getElementById("loadMoreBtn").addEventListener("click", ()=> loadComments(false));
-    document.getElementById("closeDetail").addEventListener("click", ()=> document.getElementById("storeDetail").classList.remove("active"));
   </script>
 
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
