@@ -1,0 +1,156 @@
+<!-- 文件名: login.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>ログイン / 新規登録</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>🔐 ログイン / 新規登録</h1>
+    <nav class="navbar">
+      <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="procedure.html" class="btn">📄 手続きガイド</a>
+      <a href="map.html" class="btn">🗺️ マップ</a>
+      <a href="review.html" class="btn">⭐ レビュー</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ログイン -->
+    <section class="auth-card card">
+      <h2>ログイン</h2>
+      <label for="loginEmail">メールアドレス</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" />
+      <label for="loginPassword">パスワード</label>
+      <input type="password" id="loginPassword" placeholder="********" />
+      <div class="auth-actions">
+        <button class="btn-submit" id="loginBtn">ログイン</button>
+        <button class="btn-submit" id="pwResetBtn" style="background:#666;">パスワード再設定</button>
+      </div>
+    </section>
+
+    <!-- 新規登録 -->
+    <section class="auth-card card">
+      <h2>新規登録</h2>
+      <label for="signupEmail">メールアドレス</label>
+      <input type="email" id="signupEmail" placeholder="you@example.com" />
+      <label for="signupPassword">パスワード（6文字以上）</label>
+      <input type="password" id="signupPassword" placeholder="********" />
+      <div class="auth-actions">
+        <button class="btn-submit" id="signupBtn">アカウント作成</button>
+      </div>
+    </section>
+
+    <!-- 状態表示 -->
+    <section class="auth-card card">
+      <h2>現在の状態</h2>
+      <p id="userStatus">未ログイン</p>
+      <div class="auth-actions">
+        <button class="btn-submit" id="logoutBtn" style="background:#a30000;">ログアウト</button>
+      </div>
+      <small id="authMsg" style="display:block;margin-top:8px;color:#666;"></small>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+  <script>
+    // あなたの Firebase 設定（map.html と同一）
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+      authDomain: "kobe-life-guide.firebaseapp.com",
+      projectId: "kobe-life-guide",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
+      messagingSenderId: "440390213094",
+      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+    };
+
+    // 初期化
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // ユーティリティ: クエリパラメータ取得
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+    const redirectTo = getQueryParam("redirectTo"); // 例: login.html?redirectTo=admin.html
+
+    const userStatus = document.getElementById("userStatus");
+    const authMsg = document.getElementById("authMsg");
+
+    // 新規登録
+    document.getElementById("signupBtn").addEventListener("click", () => {
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value;
+      if (!email || !password) return alert("メールとパスワードを入力してください。");
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(cred => {
+          authMsg.textContent = "✅ 新規登録に成功しました: " + cred.user.email;
+        })
+        .catch(err => {
+          alert("登録エラー: " + err.message);
+        });
+    });
+
+    // ログイン
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!email || !password) return alert("メールとパスワードを入力してください。");
+      auth.signInWithEmailAndPassword(email, password)
+        .then(cred => {
+          authMsg.textContent = "✅ ログイン成功: " + cred.user.email;
+          // 次ページで利用できるように保存
+          localStorage.setItem("auth_email", cred.user.email);
+          localStorage.setItem("auth_uid", cred.user.uid);
+          if (redirectTo) {
+            // 任意のページへ遷移（例: admin.html）
+            window.location.href = redirectTo;
+          }
+        })
+        .catch(err => {
+          alert("ログインエラー: " + err.message);
+        });
+    });
+
+    // パスワード再設定
+    document.getElementById("pwResetBtn").addEventListener("click", () => {
+      const email = document.getElementById("loginEmail").value.trim();
+      if (!email) return alert("再設定メールを送るにはメールアドレスを入力してください。");
+      auth.sendPasswordResetEmail(email)
+        .then(() => {
+          alert("再設定メールを送信しました。受信ボックスをご確認ください。");
+        })
+        .catch(err => alert("送信エラー: " + err.message));
+    });
+
+    // ログアウト
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      auth.signOut().then(() => {
+        localStorage.removeItem("auth_email");
+        localStorage.removeItem("auth_uid");
+        authMsg.textContent = "ログアウトしました。";
+      });
+    });
+
+    // 状態監視
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        userStatus.textContent = "ログイン中: " + user.email;
+      } else {
+        userStatus.textContent = "未ログイン";
+      }
+    });
+  </script>
+</body>
+</html>
