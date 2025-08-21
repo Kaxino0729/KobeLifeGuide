@@ -1,156 +1,159 @@
-/* --------------------
-   全局設定
--------------------- */
-body {
-  margin: 0;
-  font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
-  background-color: #f9f9f9;
-  color: #333;
-  line-height: 1.6;
+/* ========== Global ========== */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif;
+  color: #333; background: #f9f9f9; line-height: 1.6;
 }
+h1, h2, h3 { margin: .6em 0; font-weight: 700; color: #222; }
+p { margin: .5em 0 1.2em; }
+a { color: #0a66c2; text-decoration: none; }
+a:hover { text-decoration: underline; }
 
-h1, h2, h3 {
-  margin: 0.5em 0;
-  font-weight: bold;
-}
-
-/* --------------------
-   ヘッダーとナビバー
--------------------- */
+/* ========== Header & Nav ========== */
 header {
-  background: #0a66c2;
-  color: white;
-  padding: 15px;
-  text-align: center;
+  background: #0077b6; color: #fff; text-align: center;
+  padding: 18px 16px;
 }
-
+header h1 { margin-bottom: 8px; font-size: 1.8rem; }
 .navbar {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
 }
-
 .navbar .btn {
-  background: white;
-  color: #0a66c2;
-  padding: 8px 14px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: 0.3s;
+  display: inline-block; padding: 8px 14px; border-radius: 6px;
+  background: #fff; color: #0a66c2; font-weight: 700; transition: .2s;
+  border: 0;
 }
+.navbar .btn:hover { background: #e8f1fb; }
 
-.navbar .btn:hover {
-  background: #004182;
-  color: white;
+/* ========== Main & Containers ========== */
+main { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+.intro { text-align: center; margin-bottom: 18px; }
+.feature-list { list-style: none; padding: 0; margin: 10px auto; }
+.feature-list li { margin: 6px 0; }
+
+/* Cards (for procedure/review blocks) */
+.card, .feedback-form, .procedure-item {
+  background: #fff; border: 1px solid #e6e6e6; border-radius: 10px;
+  padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.05);
 }
+.card + .card, .procedure-item + .procedure-item { margin-top: 16px; }
 
-/* --------------------
-   メイン部分
--------------------- */
-main {
-  max-width: 900px;
-  margin: 20px auto;
-  padding: 0 15px;
+/* ========== Procedure page grid ========== */
+.procedure-list {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
 }
+.procedure-item h3 { margin-top: 0; }
 
-.intro {
-  margin-bottom: 20px;
-  text-align: center;
+/* ========== Forms ========== */
+form { margin-top: 10px; }
+input[type="text"], input[type="email"], input[type="password"],
+textarea, select {
+  width: 100%; padding: 10px; border: 1px solid #cfcfcf; border-radius: 8px;
+  font-size: 14px; background: #fff; outline: none;
 }
-
-/* --------------------
-   Google Map
--------------------- */
-#map {
-  height: 500px;
-  width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  margin: 0 auto 20px;
+textarea { resize: vertical; min-height: 100px; }
+.btn-submit, button[type="submit"] {
+  display: inline-block; margin-top: 10px; padding: 10px 16px;
+  background: #0a66c2; color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 15px; font-weight: 700; transition: .2s;
 }
+.btn-submit:hover, button[type="submit"]:hover { background: #004a99; }
 
-#searchBox {
-  width: 90%;
-  max-width: 400px;
-  margin: 10px auto;
-  display: block;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #999;
-  font-size: 16px;
-}
-
-/* --------------------
-   レビュー・コメント
--------------------- */
-.comment {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 10px;
-  margin: 10px 0;
-}
-
-.comment strong {
-  font-size: 15px;
-  color: #0a66c2;
-}
-
-.stars {
-  color: #f39c12;
-  margin-left: 5px;
-}
-
-.comment small {
-  display: block;
-  margin-top: 6px;
-  color: #666;
-  font-size: 12px;
-}
-
-/* --------------------
-   フォーム
--------------------- */
-form {
-  margin-top: 10px;
-}
-
-input[type="text"],
-textarea,
-select {
-  width: 100%;
-  padding: 8px;
-  margin: 6px 0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 14px;
-}
-
-.btn-submit {
-  background: #0a66c2;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.btn-submit:hover {
-  background: #004182;
-}
-
-/* --------------------
-   フッター
--------------------- */
+/* ========== Footer ========== */
 footer {
-  background: #eee;
-  text-align: center;
-  padding: 10px;
-  margin-top: 20px;
-  font-size: 14px;
-  color: #555;
+  margin-top: 30px; background: #efefef; text-align: center;
+  padding: 12px; color: #555; font-size: 14px;
+}
+
+/* ========== Map page ========== */
+#map {
+  height: 500px; width: 100%;
+  border: 1px solid #d9d9d9; border-radius: 12px;
+  margin: 12px 0 18px;
+}
+#searchBox {
+  width: 90%; max-width: 420px; margin: 0 auto 12px; display: block;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid #bdbdbd; font-size: 16px;
+}
+
+/* Google Maps info window helpers */
+.info-img {
+  width: 100%; max-width: 160px; margin-top: 6px; border-radius: 6px;
+}
+.info-link {
+  display: inline-block; margin-top: 8px; padding: 6px 10px;
+  background: #0a66c2; color: #fff; border-radius: 6px; font-size: 13px;
+}
+
+/* ========== Map – slide-up detail (storeDetail / comment-box) ========== */
+/* 兼容两种命名：storeDetail（新）与 comment-box（旧） */
+.store-detail, #comment-box {
+  position: fixed; left: 0; bottom: -100%; width: 100%;
+  background: #fff; border-top: 3px solid #0a66c2;
+  box-shadow: 0 -6px 16px rgba(0,0,0,.18);
+  transition: bottom .35s ease; z-index: 9999;
+  padding: 14px 16px; max-height: 70vh; overflow-y: auto;
+}
+.store-detail.active, #comment-box.active { bottom: 0; }
+
+.store-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.store-header h3, #shop-name { margin: 0; font-size: 1.2rem; }
+.close-btn, #close-btn {
+  background: transparent; border: none; font-size: 20px; cursor: pointer; color: #444;
+}
+
+/* 评论区 & 列表 */
+.comment-section { margin-top: 8px; }
+.comment-list { margin-top: 14px; }
+
+#comments { margin-top: 10px; max-height: none; }
+.comment, .comment-item {
+  background: #fff; border: 1px solid #e9e9e9; border-radius: 10px;
+  padding: 10px 12px; margin: 10px 0;
+}
+.comment strong, .comment-item strong { color: #0a66c2; }
+
+/* 星级 */
+.star-rating { user-select: none; }
+.star-rating span {
+  display: inline-block; font-size: 22px; color: #ccc; cursor: pointer; padding: 2px 3px;
+}
+.star-rating span.active, .star-input.selected { color: #ffc107; }
+.stars { color: #ffc107; font-size: 16px; margin: 4px 0; }
+
+/* “更多”按钮 */
+#loadMoreBtn, #loadMore {
+  display: none; margin: 10px auto 0; padding: 8px 12px;
+  background: #eee; border: 1px solid #d0d0d0; border-radius: 8px;
+  color: #333; cursor: pointer;
+}
+#loadMoreBtn:hover, #loadMore:hover { background: #e5e5e5; }
+
+/* ========== Review page ========== */
+.feedback-form label { display: block; margin: 10px 0 4px; font-weight: 700; }
+
+/* ========== Auth / Login (未来 login.html 用) ========== */
+.auth-card { max-width: 520px; margin: 16px auto; }
+.auth-card h2 { margin-top: 0; }
+.auth-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.auth-actions .btn-submit { margin-top: 0; }
+
+/* ========== Responsive ========== */
+@media (max-width: 900px) {
+  main { padding: 0 12px; }
+}
+@media (max-width: 768px) {
+  .procedure-list { grid-template-columns: 1fr; }
+  #map { height: 420px; }
+  header h1 { font-size: 1.5rem; }
+  .navbar { gap: 6px; }
+}
+@media (max-width: 520px) {
+  #map { height: 360px; }
+  .store-detail, #comment-box { max-height: 75vh; padding: 12px; }
+  .navbar .btn { padding: 8px 12px; }
 }
