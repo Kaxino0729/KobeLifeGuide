@@ -1,4 +1,4 @@
-/* ========== Global ========== */
+/* ========== Global 基础 ========== */
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
@@ -10,7 +10,7 @@ p { margin: .5em 0 1.2em; }
 a { color: #0a66c2; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ========== Header & Nav ========== */
+/* ========== Header & Navbar 头部与导航 ========== */
 header {
   background: #0077b6; color: #fff; text-align: center;
   padding: 18px 16px;
@@ -26,26 +26,28 @@ header h1 { margin-bottom: 8px; font-size: 1.8rem; }
 }
 .navbar .btn:hover { background: #e8f1fb; }
 
-/* ========== Main & Containers ========== */
+/* ========== Main 版心 ========== */
 main { max-width: 980px; margin: 20px auto; padding: 0 16px; }
 .intro { text-align: center; margin-bottom: 18px; }
 .feature-list { list-style: none; padding: 0; margin: 10px auto; }
 .feature-list li { margin: 6px 0; }
 
-/* Cards (for procedure/review blocks) */
-.card, .feedback-form, .procedure-item {
+/* ========== Cards / 通用卡片容器（procedure 等用） ========== */
+.cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+}
+.card {
   background: #fff; border: 1px solid #e6e6e6; border-radius: 10px;
   padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.05);
 }
-.card + .card, .procedure-item + .procedure-item { margin-top: 16px; }
-
-/* ========== Procedure page grid ========== */
-.procedure-list {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+.card + .card { margin-top: 0; }
+.icon {
+  display: inline-block; font-size: 28px; color: #0a66c2; margin-bottom: 8px;
 }
-.procedure-item h3 { margin-top: 0; }
+.guide-list { padding-left: 18px; margin: 10px 0 0; }
+.guide-list li { margin: 6px 0; }
 
-/* ========== Forms ========== */
+/* ========== Forms & Buttons 表单与按钮 ========== */
 form { margin-top: 10px; }
 input[type="text"], input[type="email"], input[type="password"],
 textarea, select {
@@ -60,100 +62,90 @@ textarea { resize: vertical; min-height: 100px; }
 }
 .btn-submit:hover, button[type="submit"]:hover { background: #004a99; }
 
-/* ========== Footer ========== */
+/* ========== Footer 页脚 ========== */
 footer {
   margin-top: 30px; background: #efefef; text-align: center;
   padding: 12px; color: #555; font-size: 14px;
 }
 
-/* ========== Map page ========== */
+/* ========== Map 地图页 ========== */
 #map {
-  height: 500px; width: 100%;
-  border: 1px solid #d9d9d9; border-radius: 12px;
-  margin: 12px 0 18px;
+  height: 500px; width: 90%;
+  border: 1px solid #d9d9d9; border-radius: 10px;
+  margin: 20px auto;
 }
 #searchBox {
-  width: 90%; max-width: 420px; margin: 0 auto 12px; display: block;
-  padding: 10px 12px; border-radius: 10px; border: 1px solid #bdbdbd; font-size: 16px;
+  width: 80%; max-width: 400px; margin: 10px auto;
+  display: block; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid #999; font-size: 16px;
 }
-
-/* Google Maps info window helpers */
-.info-img {
-  width: 100%; max-width: 160px; margin-top: 6px; border-radius: 6px;
-}
+.info-img { width: 100%; max-width: 150px; margin-top: 6px; border-radius: 5px; }
 .info-link {
-  display: inline-block; margin-top: 8px; padding: 6px 10px;
-  background: #0a66c2; color: #fff; border-radius: 6px; font-size: 13px;
+  display: inline-block; margin-top: 8px; padding: 4px 8px;
+  background: #0a66c2; color: #fff; border-radius: 4px; font-size: 13px;
 }
 
-/* ========== Map – slide-up detail (storeDetail / comment-box) ========== */
-/* 兼容两种命名：storeDetail（新）与 comment-box（旧） */
-.store-detail, #comment-box {
-  position: fixed; left: 0; bottom: -100%; width: 100%;
-  background: #fff; border-top: 3px solid #0a66c2;
-  box-shadow: 0 -6px 16px rgba(0,0,0,.18);
-  transition: bottom .35s ease; z-index: 9999;
-  padding: 14px 16px; max-height: 70vh; overflow-y: auto;
+/* 下滑评论弹层（兼容旧 #comment-box） */
+#comment-box {
+  position: fixed; bottom: -100%; left: 0; width: 100%;
+  background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+  transition: bottom .35s ease; padding: 1em; z-index: 9999;
+  max-height: 70vh; overflow-y: auto; border-top: 3px solid #0a66c2;
 }
-.store-detail.active, #comment-box.active { bottom: 0; }
-
+#comment-box.active { bottom: 0; }
 .store-header {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  margin-bottom: 10px;
 }
-.store-header h3, #shop-name { margin: 0; font-size: 1.2rem; }
-.close-btn, #close-btn {
-  background: transparent; border: none; font-size: 20px; cursor: pointer; color: #444;
+.close-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
+
+/* 评论列表与项 */
+#comments { max-height: 200px; overflow-y: auto; margin-top: 10px; }
+.comment {
+  border-top: 1px solid #ddd; background: #f8faff;
+  margin-bottom: 5px; padding: 8px; border-radius: 4px;
+}
+.stars { color: #ffc107; font-size: 16px; margin-top: 4px; }
+.star-input { font-size: 20px; color: #ccc; cursor: pointer; }
+.star-input.selected { color: #ffc107; }
+#loadMore {
+  background: #eee; border: none; padding: 6px 12px;
+  margin-top: 10px; border-radius: 5px; cursor: pointer;
 }
 
-/* 评论区 & 列表 */
-.comment-section { margin-top: 8px; }
-.comment-list { margin-top: 14px; }
+/* ========== Review 独立评论页（匹配你之前的内联样式） ========== */
+/* 让 review.html 的布局不需要内联样式也能还原 */
+body.review-standalone { padding: 1em; }
+.review-standalone h1, .review-standalone h2 { text-align: center; }
 
-#comments { margin-top: 10px; max-height: none; }
-.comment, .comment-item {
-  background: #fff; border: 1px solid #e9e9e9; border-radius: 10px;
-  padding: 10px 12px; margin: 10px 0;
+.comment-list { max-width: 600px; margin: 20px auto; }
+.comment-list .comment {
+  border-bottom: 1px solid #ddd; padding: 10px 0; background: transparent; border-radius: 0;
 }
-.comment strong, .comment-item strong { color: #0a66c2; }
-
-/* 星级 */
-.star-rating { user-select: none; }
-.star-rating span {
-  display: inline-block; font-size: 22px; color: #ccc; cursor: pointer; padding: 2px 3px;
+.comment-list .comment .name {
+  font-weight: bold; color: #0a66c2;
 }
-.star-rating span.active, .star-input.selected { color: #ffc107; }
-.stars { color: #ffc107; font-size: 16px; margin: 4px 0; }
 
-/* “更多”按钮 */
-#loadMoreBtn, #loadMore {
-  display: none; margin: 10px auto 0; padding: 8px 12px;
-  background: #eee; border: 1px solid #d0d0d0; border-radius: 8px;
-  color: #333; cursor: pointer;
+/* 复刻 review 页面自带的 navbar 风格（无 header 时也好看） */
+.navbar.standalone {
+  text-align: center; margin-bottom: 20px; display: block;
 }
-#loadMoreBtn:hover, #loadMore:hover { background: #e5e5e5; }
+.navbar.standalone .btn {
+  margin: 0 8px; text-decoration: none; color: white;
+  background-color: #0a66c2; padding: 6px 12px; border-radius: 6px;
+}
 
-/* ========== Review page ========== */
-.feedback-form label { display: block; margin: 10px 0 4px; font-weight: 700; }
-
-/* ========== Auth / Login (未来 login.html 用) ========== */
-.auth-card { max-width: 520px; margin: 16px auto; }
-.auth-card h2 { margin-top: 0; }
-.auth-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.auth-actions .btn-submit { margin-top: 0; }
-
-/* ========== Responsive ========== */
+/* ========== 响应式 ========== */
 @media (max-width: 900px) {
   main { padding: 0 12px; }
 }
 @media (max-width: 768px) {
-  .procedure-list { grid-template-columns: 1fr; }
-  #map { height: 420px; }
+  .cards { grid-template-columns: 1fr; }
+  #map { width: 100%; height: 420px; }
   header h1 { font-size: 1.5rem; }
   .navbar { gap: 6px; }
 }
 @media (max-width: 520px) {
   #map { height: 360px; }
-  .store-detail, #comment-box { max-height: 75vh; padding: 12px; }
+  #comment-box { max-height: 75vh; padding: 12px; }
   .navbar .btn { padding: 8px 12px; }
 }
