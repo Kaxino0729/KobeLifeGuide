@@ -1,113 +1,71 @@
-<!-- 文件名：review.html -->
+<!-- 文件名: procedure.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>コメント - 留学生の声</title>
+  <title>手続きガイド</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 1em;
-    }
-    h1, h2 {
-      text-align: center;
-    }
-    form {
-      max-width: 500px;
-      margin: 20px auto;
-      padding: 1em;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      background-color: #f9f9f9;
-    }
-    input, textarea, button {
-      display: block;
-      width: 100%;
-      margin-top: 10px;
-      padding: 8px;
-      font-size: 1em;
-    }
-    .comment-list {
-      max-width: 600px;
-      margin: 20px auto;
-    }
-    .comment {
-      border-bottom: 1px solid #ddd;
-      padding: 10px 0;
-    }
-    .comment .name {
-      font-weight: bold;
-      color: #0a66c2;
-    }
-    .navbar {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .navbar .btn {
-      margin: 0 8px;
-      text-decoration: none;
-      color: white;
-      background-color: #0a66c2;
-      padding: 6px 12px;
-      border-radius: 6px;
-    }
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <h1>💬 留学生のコメント</h1>
+  <header>
+    <h1>📄 手続きガイド（手续指南）</h1>
+    <nav class="navbar">
+      <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="procedure.html" class="btn">📄 手続きガイド</a>
+      <a href="map.html" class="btn">🗺️ マップ</a>
+      <a href="review.html" class="btn">⭐ レビュー</a>
+    </nav>
+  </header>
 
-  <nav class="navbar">
-    <a href="index.html" class="btn">🏠 ホーム</a>
-    <a href="procedure.html" class="btn">📄 手続きガイド</a>
-    <a href="map.html" class="btn">🗺️ マップ</a>
-    <a href="review.html" class="btn">⭐ レビュー</a>
-  </nav>
+  <main>
+    <section class="intro">
+      <h2>📝 主要な手続き一覧</h2>
+      <p>留学生にとって最初に必要となる手続きの情報をまとめています。</p>
+    </section>
 
-  <form id="commentForm">
-    <label for="name">お名前（任意）</label>
-    <input type="text" id="name" placeholder="例：リュウさん">
+    <section class="cards">
+      <div class="card">
+        <i class="fas fa-sim-card icon"></i>
+        <h3>SIMカードの契約</h3>
+        <ol class="guide-list">
+          <li>パスポートと在留カードを準備</li>
+          <li>通信会社を選ぶ（例：楽天、Y!mobile）</li>
+          <li>申し込みフォーム入力</li>
+          <li>本人確認とSIM受け取り</li>
+          <li>スマホに挿入して設定</li>
+        </ol>
+      </div>
 
-    <label for="comment">コメント内容</label>
-    <textarea id="comment" rows="4" placeholder="生活の悩みや、便利だったことなどを教えてください"></textarea>
+      <div class="card">
+        <i class="fas fa-house icon"></i>
+        <h3>賃貸契約の流れ</h3>
+        <ol class="guide-list">
+          <li>不動産サイトで物件検索</li>
+          <li>内見予約 → 実際に見学</li>
+          <li>保証人や初期費用の確認</li>
+          <li>契約書類の提出と審査</li>
+          <li>鍵の受け取りと入居開始</li>
+        </ol>
+      </div>
 
-    <button type="submit">送信</button>
-  </form>
+      <div class="card">
+        <i class="fas fa-university icon"></i>
+        <h3>銀行口座の開設</h3>
+        <ol class="guide-list">
+          <li>在留カード・学生証を準備</li>
+          <li>銀行窓口またはネットで申請</li>
+          <li>印鑑が必要な場合あり</li>
+          <li>本人確認 → 口座番号発行</li>
+          <li>キャッシュカードの受け取り</li>
+        </ol>
+      </div>
+    </section>
+  </main>
 
-  <section class="comment-list" id="commentList"></section>
-
-  <script>
-    const form = document.getElementById("commentForm");
-    const commentList = document.getElementById("commentList");
-
-    const saveComment = (name, comment) => {
-      const data = JSON.parse(localStorage.getItem("comments") || "[]");
-      data.unshift({ name, comment, time: new Date().toLocaleString() });
-      localStorage.setItem("comments", JSON.stringify(data));
-    };
-
-    const renderComments = () => {
-      const data = JSON.parse(localStorage.getItem("comments") || "[]");
-      commentList.innerHTML = data.map(c => `
-        <div class="comment">
-          <div class="name">🧑 ${c.name || "匿名"} <span style="font-weight:normal; color:#999; font-size:12px;">（${c.time}）</span></div>
-          <div class="text">${c.comment}</div>
-        </div>
-      `).join("");
-    };
-
-    form.addEventListener("submit", e => {
-      e.preventDefault();
-      const name = document.getElementById("name").value.trim();
-      const comment = document.getElementById("comment").value.trim();
-      if (!comment) return alert("コメント内容を入力してください。");
-      saveComment(name, comment);
-      form.reset();
-      renderComments();
-    });
-
-    renderComments();
-  </script>
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
 </body>
 </html>
