@@ -11,7 +11,6 @@
   <header>
     <h1>🔐 ログイン / 新規登録</h1>
     <nav class="navbar">
-      <a href="login.html" class="btn">🔐 ログイン</a>
       <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
       <a href="map.html" class="btn">🗺️ マップ</a>
@@ -63,9 +62,10 @@
   <!-- Firebase compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    // あなたの Firebase 設定（map.html と同一）
+    // ※ あなたの Firebase 設定（map.html と同一にしてください）
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -78,78 +78,110 @@
     // 初期化
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    // ユーティリティ: クエリパラメータ取得
+    // ユーティリティ: クエリパラメータ取得（例：?redirectTo=admin.html）
     function getQueryParam(name) {
       const params = new URLSearchParams(window.location.search);
       return params.get(name);
     }
-    const redirectTo = getQueryParam("redirectTo"); // 例: login.html?redirectTo=admin.html
+    const redirectTo = getQueryParam("redirectTo");
 
     const userStatus = document.getElementById("userStatus");
     const authMsg = document.getElementById("authMsg");
 
-    // 新規登録
-    document.getElementById("signupBtn").addEventListener("click", () => {
+    // --- 新規登録（登録後に Firestore にユーザー文書を作成）---
+    document.getElementById("signupBtn").addEventListener("click", async () => {
       const email = document.getElementById("signupEmail").value.trim();
       const password = document.getElementById("signupPassword").value;
+
       if (!email || !password) return alert("メールとパスワードを入力してください。");
-      auth.createUserWithEmailAndPassword(email, password)
-        .then(cred => {
-          authMsg.textContent = "✅ 新規登録に成功しました: " + cred.user.email;
-        })
-        .catch(err => {
-          alert("登録エラー: " + err.message);
-        });
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        authMsg.textContent = "✅ 新規登録に成功しました: " + cred.user.email;
+
+        // Firestore にプロフィール作成（デフォルトは一般ユーザー）
+        await db.collection("users").doc(cred.user.uid).set({
+          email: cred.user.email,
+          role: "user",          // ← 管理者にしたい場合はコンソールで "admin" に変更
+          createdAt: new Date()
+        }, { merge: true });
+
+        // ローカル保存（任意）
+        localStorage.setItem("auth_email", cred.user.email);
+        localStorage.setItem("auth_uid", cred.user.uid);
+
+      } catch (err) {
+        alert("登録エラー: " + err.message);
+      }
     });
 
-    // ログイン
-    document.getElementById("loginBtn").addEventListener("click", () => {
+    // --- ログイン ---
+    document.getElementById("loginBtn").addEventListener("click", async () => {
       const email = document.getElementById("loginEmail").value.trim();
       const password = document.getElementById("loginPassword").value;
+
       if (!email || !password) return alert("メールとパスワードを入力してください。");
-      auth.signInWithEmailAndPassword(email, password)
-        .then(cred => {
-          authMsg.textContent = "✅ ログイン成功: " + cred.user.email;
-          // 次ページで利用できるように保存
-          localStorage.setItem("auth_email", cred.user.email);
-          localStorage.setItem("auth_uid", cred.user.uid);
-          if (redirectTo) {
-            // 任意のページへ遷移（例: admin.html）
-            window.location.href = redirectTo;
-          }
-        })
-        .catch(err => {
-          alert("ログインエラー: " + err.message);
-        });
+      try {
+        const cred = await auth.signInWithEmailAndPassword(email, password);
+        authMsg.textContent = "✅ ログイン成功: " + cred.user.email;
+
+        // ローカル保存（他ページで参照）
+        localStorage.setItem("auth_email", cred.user.email);
+        localStorage.setItem("auth_uid", cred.user.uid);
+
+        // 任意のページへ遷移（?redirectTo=xxx 指定がある場合）
+        if (redirectTo) window.location.href = redirectTo;
+
+      } catch (err) {
+        alert("ログインエラー: " + err.message);
+      }
     });
 
-    // パスワード再設定
-    document.getElementById("pwResetBtn").addEventListener("click", () => {
+    // --- パスワード再設定 ---
+    document.getElementById("pwResetBtn").addEventListener("click", async () => {
       const email = document.getElementById("loginEmail").value.trim();
       if (!email) return alert("再設定メールを送るにはメールアドレスを入力してください。");
-      auth.sendPasswordResetEmail(email)
-        .then(() => {
-          alert("再設定メールを送信しました。受信ボックスをご確認ください。");
-        })
-        .catch(err => alert("送信エラー: " + err.message));
+      try {
+        await auth.sendPasswordResetEmail(email);
+        alert("再設定メールを送信しました。受信ボックスをご確認ください。");
+      } catch (err) {
+        alert("送信エラー: " + err.message);
+      }
     });
 
-    // ログアウト
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      auth.signOut().then(() => {
-        localStorage.removeItem("auth_email");
-        localStorage.removeItem("auth_uid");
-        authMsg.textContent = "ログアウトしました。";
-      });
+    // --- ログアウト ---
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await auth.signOut();
+      localStorage.removeItem("auth_email");
+      localStorage.removeItem("auth_uid");
+      authMsg.textContent = "ログアウトしました。";
     });
 
-    // 状態監視
-    auth.onAuthStateChanged(user => {
+    // --- 認証状態の監視 ---
+    auth.onAuthStateChanged(async (user) => {
       if (user) {
         userStatus.textContent = "ログイン中: " + user.email;
+
+        // 参考：ここで Firestore のロールを読む（管理者判定などに使えます）
+        try {
+          const snap = await db.collection("users").doc(user.uid).get();
+          if (snap.exists) {
+            const profile = snap.data();
+            // 例：role が admin なら何か表示切り替え…など
+            console.log("User role:", profile.role);
+            // localStorage に保持して map.html で使うのもOK
+            localStorage.setItem("auth_role", profile.role || "user");
+          } else {
+            localStorage.setItem("auth_role", "user");
+          }
+        } catch (e) {
+          console.warn("ユーザープロフィール取得エラー:", e);
+        }
+
       } else {
         userStatus.textContent = "未ログイン";
+        localStorage.removeItem("auth_role");
       }
     });
   </script>
