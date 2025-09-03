@@ -65,7 +65,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    // ※ あなたの Firebase 設定（map.html と同一にしてください）
+    // あなたの Firebase 設定（map.html と同一）
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -80,7 +80,7 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // ユーティリティ: クエリパラメータ取得（例：?redirectTo=admin.html）
+    // util: クエリパラメータ ?redirectTo=xxx を取得
     function getQueryParam(name) {
       const params = new URLSearchParams(window.location.search);
       return params.get(name);
@@ -90,27 +90,41 @@
     const userStatus = document.getElementById("userStatus");
     const authMsg = document.getElementById("authMsg");
 
-    // --- 新規登録（登録後に Firestore にユーザー文書を作成）---
+    // --- 保险：登录/状态变化时，确保 Firestore に users/{uid} を補建 ---
+    async function ensureUserDoc(user) {
+      const ref = db.collection("users").doc(user.uid);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        await ref.set({
+          email: user.email || "",
+          role: "user",       // 预设普通用户；管理员请到控制台改为 "admin"
+          createdAt: new Date()
+        }, { merge: true });
+        console.log("✅ users 文档已补建:", user.uid);
+      }
+      // 同步角色到本地，方便其他页面用
+      const latest = (await ref.get()).data() || {};
+      localStorage.setItem("auth_role", latest.role || "user");
+    }
+
+    // --- 新規登録（注册后写入 users/{uid}）---
     document.getElementById("signupBtn").addEventListener("click", async () => {
       const email = document.getElementById("signupEmail").value.trim();
       const password = document.getElementById("signupPassword").value;
-
       if (!email || !password) return alert("メールとパスワードを入力してください。");
       try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         authMsg.textContent = "✅ 新規登録に成功しました: " + cred.user.email;
 
-        // Firestore にプロフィール作成（デフォルトは一般ユーザー）
         await db.collection("users").doc(cred.user.uid).set({
           email: cred.user.email,
-          role: "user",          // ← 管理者にしたい場合はコンソールで "admin" に変更
+          role: "user",
           createdAt: new Date()
         }, { merge: true });
 
-        // ローカル保存（任意）
         localStorage.setItem("auth_email", cred.user.email);
         localStorage.setItem("auth_uid", cred.user.uid);
-
+        localStorage.setItem("auth_role", "user");
       } catch (err) {
         alert("登録エラー: " + err.message);
       }
@@ -120,19 +134,15 @@
     document.getElementById("loginBtn").addEventListener("click", async () => {
       const email = document.getElementById("loginEmail").value.trim();
       const password = document.getElementById("loginPassword").value;
-
       if (!email || !password) return alert("メールとパスワードを入力してください。");
       try {
         const cred = await auth.signInWithEmailAndPassword(email, password);
         authMsg.textContent = "✅ ログイン成功: " + cred.user.email;
-
-        // ローカル保存（他ページで参照）
         localStorage.setItem("auth_email", cred.user.email);
         localStorage.setItem("auth_uid", cred.user.uid);
+        // 这里不跳 ensureUserDoc，交给 onAuthStateChanged 统一处理
 
-        // 任意のページへ遷移（?redirectTo=xxx 指定がある場合）
         if (redirectTo) window.location.href = redirectTo;
-
       } catch (err) {
         alert("ログインエラー: " + err.message);
       }
@@ -155,32 +165,27 @@
       await auth.signOut();
       localStorage.removeItem("auth_email");
       localStorage.removeItem("auth_uid");
+      localStorage.removeItem("auth_role");
       authMsg.textContent = "ログアウトしました。";
     });
 
-    // --- 認証状態の監視 ---
+    // --- 認証状態の監視：登录后自动补建档&同步角色 ---
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         userStatus.textContent = "ログイン中: " + user.email;
+        localStorage.setItem("auth_email", user.email);
+        localStorage.setItem("auth_uid", user.uid);
 
-        // 参考：ここで Firestore のロールを読む（管理者判定などに使えます）
         try {
-          const snap = await db.collection("users").doc(user.uid).get();
-          if (snap.exists) {
-            const profile = snap.data();
-            // 例：role が admin なら何か表示切り替え…など
-            console.log("User role:", profile.role);
-            // localStorage に保持して map.html で使うのもOK
-            localStorage.setItem("auth_role", profile.role || "user");
-          } else {
-            localStorage.setItem("auth_role", "user");
-          }
+          await ensureUserDoc(user);   // 👈 关键：登录时也确保 Firestore 建好档案
         } catch (e) {
-          console.warn("ユーザープロフィール取得エラー:", e);
+          console.warn("ensureUserDoc 失败:", e);
+          alert("ユーザープロフィールの作成/取得に失敗しました: " + e.message);
         }
-
       } else {
         userStatus.textContent = "未ログイン";
+        localStorage.removeItem("auth_email");
+        localStorage.removeItem("auth_uid");
         localStorage.removeItem("auth_role");
       }
     });
