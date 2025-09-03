@@ -1,0 +1,495 @@
+<!-- 文件名: admin.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>管理画面 - 神戸外国人生活ガイド</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* 轻量布局，仅限本页；不与全站 style.css 冲突 */
+    .admin-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 12px; border-radius: 8px; background:#e8f1fb; border:none; cursor:pointer; }
+    .tab-btn.active { background:#0a66c2; color:#fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .admin-layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+    .admin-side, .admin-main, .box {
+      background:#fff; border:1px solid #e6e6e6; border-radius:10px; padding:12px;
+    }
+    .shop-item { padding:8px; border-radius:6px; cursor:pointer; }
+    .shop-item:hover { background:#f3f7ff; }
+    .shop-item.active { background:#e8f1fb; font-weight:700; }
+    .comment-row { border-top:1px solid #eee; padding:10px 0; }
+    .row-actions { margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; }
+    .muted { color:#777; font-size:12px; }
+    .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+    .toolbar input[type="text"] { max-width: 280px; }
+    .pager { margin-top:10px; display:flex; gap:8px; align-items:center; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { border-bottom:1px solid #eee; padding:8px; text-align:left; vertical-align: top; }
+    .role-badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef; font-size:12px; }
+    .role-admin { background:#ffe6e6; color:#a30000; }
+    .role-user  { background:#e6f3ff; color:#004a99; }
+    .inline-btn { padding:6px 10px; border:none; border-radius:6px; cursor:pointer; background:#0a66c2; color:#fff; }
+    .inline-btn.danger { background:#a30000; }
+    .inline-btn.secondary { background:#666; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛠 管理画面</h1>
+    <nav class="navbar">
+      <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="procedure.html" class="btn">📄 手続きガイド</a>
+      <a href="map.html" class="btn">🗺️ マップ</a>
+      <a href="review.html" class="btn">⭐ レビュー</a>
+      <a href="login.html" class="btn">🔐 ログイン</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h2>管理コンソール</h2>
+      <p>コメントとユーザーを一元管理します（管理者のみ）。</p>
+      <div id="statusBar" style="text-align:center;padding:6px;background:#f0f4f8;color:#333;font-size:14px;margin-top:8px;">
+        認証検証中…
+      </div>
+    </section>
+
+    <!-- 顶部标签 -->
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="tab-comments">📝 コメント管理</button>
+      <button class="tab-btn" data-tab="tab-users">👥 ユーザー管理</button>
+    </div>
+
+    <!-- ====== 评论管理 ====== -->
+    <section id="tab-comments" class="tab-panel active">
+      <div class="admin-layout">
+        <!-- 左：店铺列表（来自 CSV） -->
+        <aside class="admin-side">
+          <h3 style="margin-top:0;">店舗一覧</h3>
+          <div class="toolbar">
+            <input id="shopSearch" type="text" placeholder="店名で検索…" />
+            <button id="reloadShops" class="btn-submit" style="padding:6px 10px;">再読込</button>
+          </div>
+          <div id="shopList"></div>
+        </aside>
+
+        <!-- 右：评论列表 -->
+        <section class="admin-main">
+          <h3 style="margin-top:0;">レビュー一覧 <span id="currentShopName" class="muted"></span></h3>
+          <div class="toolbar">
+            <button id="refreshComments" class="btn-submit" style="padding:6px 10px;">更新</button>
+            <span class="muted">1ページ 10件</span>
+          </div>
+          <div id="commentList"></div>
+          <div class="pager">
+            <button id="prevPage" class="btn-submit" style="padding:6px 10px;">前へ</button>
+            <button id="nextPage" class="btn-submit" style="padding:6px 10px;">次へ</button>
+            <span id="pageInfo" class="muted"></span>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ====== 用户管理（基于 Firestore users 集合） ====== -->
+    <section id="tab-users" class="tab-panel">
+      <div class="box">
+        <h3 style="margin-top:0;">Firestore ユーザー一覧</h3>
+        <div class="toolbar">
+          <input id="userSearch" type="text" placeholder="email / uid で検索…" />
+          <button id="reloadUsers" class="btn-submit" style="padding:6px 10px;">再読込</button>
+        </div>
+
+        <div style="overflow:auto;">
+          <table class="table" id="userTable">
+            <thead>
+              <tr>
+                <th>メールアドレス</th>
+                <th>UID</th>
+                <th>権限</th>
+                <th>作成日時</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="userTbody">
+              <tr><td colspan="5"><small>読み込み中…</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted" style="margin-top:8px;">※ ここでの変更は Firestore の <code>users/{uid}</code> 文書に対して行われます（Authentication のアカウント削除は含みません）。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- PapaParse for CSV（与 map.html 一致） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <script>
+    /* ===== Firebase 初始化 ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+      authDomain: "kobe-life-guide.firebaseapp.com",
+      projectId: "kobe-life-guide",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
+      messagingSenderId: "440390213094",
+      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    /* ===== 顶部标签切换 ===== */
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    /* ===== 权限校验（本地 + Firestore 二次确认） ===== */
+    const statusBar = document.getElementById("statusBar");
+    const localRole = localStorage.getItem("auth_role") || "user";
+    const localEmail = localStorage.getItem("auth_email") || "";
+    const localUid = localStorage.getItem("auth_uid") || "";
+
+    statusBar.textContent = `ログイン中: ${localEmail || "未"}（ローカル権限: ${localRole}） / Firestore検証中…`;
+
+    async function verifyAdmin() {
+      if (!localUid) return false;
+      try {
+        const snap = await db.collection("users").doc(localUid).get();
+        const role = snap.exists ? (snap.data().role || "user") : "user";
+        localStorage.setItem("auth_role", role);
+        statusBar.textContent = `ログイン中: ${localEmail || "未"}（権限: ${role}）`;
+        return role === "admin";
+      } catch (e) {
+        console.warn("ロール検証エラー:", e);
+        statusBar.textContent = `権限検証に失敗しました: ${e.message}`;
+        return false;
+      }
+    }
+
+    // 非 admin 拦截
+    async function guard() {
+      const ok = await verifyAdmin();
+      if (!ok) {
+        alert("管理者のみアクセス可能です。ログインし直してください。");
+        window.location.href = "login.html?redirectTo=admin.html";
+      }
+    }
+    guard();
+
+    /* ====================== 评论管理 ====================== */
+
+    // 店铺列表（来自 Google 表格，与 map.html 相同源）
+    const shopCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+    const shopListEl = document.getElementById("shopList");
+    const shopSearchEl = document.getElementById("shopSearch");
+    const reloadShopsBtn = document.getElementById("reloadShops");
+    const currentShopNameEl = document.getElementById("currentShopName");
+
+    let shops = [];  // {id,name,description,link,image,lat,lng}
+    let filteredShops = [];
+    let currentShopId = null;
+    let currentShopName = "";
+
+    function renderShops(list) {
+      shopListEl.innerHTML = "";
+      list.forEach(s => {
+        const div = document.createElement("div");
+        div.className = "shop-item" + (s.id === currentShopId ? " active" : "");
+        div.textContent = s.name || s.id || "(無名)";
+        div.title = s.description || "";
+        div.addEventListener("click", () => {
+          currentShopId = s.id || s.name;
+          currentShopName = s.name || s.id || "";
+          Array.from(shopListEl.children).forEach(el => el.classList.remove("active"));
+          div.classList.add("active");
+          currentShopNameEl.textContent = currentShopName ? `（${currentShopName}）` : "";
+          resetPaging();
+          loadCommentsPage();
+        });
+        shopListEl.appendChild(div);
+      });
+    }
+
+    function fetchShops() {
+      Papa.parse(shopCsvUrl, {
+        download: true,
+        header: true,
+        complete: ({ data }) => {
+          shops = data
+            .filter(row => row && (row.id || row.name))
+            .map(row => ({
+              id: (row.id && row.id.trim()) || (row.name && row.name.trim()) || "",
+              name: row.name || "",
+              description: row.description || "",
+              link: row.link || "",
+              image: row.image || "",
+              lat: row.lat, lng: row.lng
+            }));
+          filteredShops = shops;
+          renderShops(filteredShops);
+        }
+      });
+    }
+    fetchShops();
+
+    shopSearchEl.addEventListener("input", () => {
+      const kw = shopSearchEl.value.trim().toLowerCase();
+      filteredShops = shops.filter(s =>
+        (s.name || "").toLowerCase().includes(kw) ||
+        (s.description || "").toLowerCase().includes(kw)
+      );
+      renderShops(filteredShops);
+    });
+    reloadShopsBtn.addEventListener("click", fetchShops);
+
+    // 评论分页
+    const commentListEl = document.getElementById("commentList");
+    const refreshBtn = document.getElementById("refreshComments");
+    const prevBtn = document.getElementById("prevPage");
+    const nextBtn = document.getElementById("nextPage");
+    const pageInfoEl = document.getElementById("pageInfo");
+
+    const PAGE_SIZE = 10;
+    let pageStack = [];
+    let lastVisible = null;
+    let pageIndex = 0;
+
+    function resetPaging() {
+      pageStack = [];
+      lastVisible = null;
+      pageIndex = 0;
+      pageInfoEl.textContent = "";
+      commentListEl.innerHTML = "";
+    }
+
+    async function loadCommentsPage(direction = "stay") {
+      if (!currentShopId) {
+        commentListEl.innerHTML = "<small>左側から店舗を選択してください。</small>";
+        return;
+      }
+
+      let ref = db.collection("shops").doc(currentShopId).collection("comments")
+                  .orderBy("time", "desc").limit(PAGE_SIZE);
+
+      if (direction === "next" && lastVisible) {
+        ref = ref.startAfter(lastVisible);
+      } else if (direction === "prev") {
+        if (pageStack.length >= 2) {
+          pageStack.pop();
+          const prevCursor = pageStack[pageStack.length - 1];
+          if (prevCursor) ref = ref.startAfter(prevCursor);
+          pageIndex = Math.max(0, pageIndex - 1);
+        } else {
+          pageIndex = 0;
+        }
+      } else {
+        if (lastVisible) ref = ref.startAfter(lastVisible);
+      }
+
+      const snap = await ref.get();
+      commentListEl.innerHTML = "";
+
+      if (snap.empty) {
+        commentListEl.innerHTML = "<small>コメントが見つかりません。</small>";
+        nextBtn.disabled = true;
+        prevBtn.disabled = pageIndex <= 0;
+        pageInfoEl.textContent = `ページ ${pageIndex + 1}`;
+        return;
+      }
+
+      snap.forEach(doc => {
+        const d = doc.data();
+        const t = d.time?.toDate ? d.time.toDate() : new Date();
+        const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+        const stars = "★".repeat(d.rating || 0) + "☆".repeat(5 - (d.rating || 0));
+
+        const row = document.createElement("div");
+        row.className = "comment-row";
+        row.innerHTML = `
+          <div><strong>${d.name || "匿名"}</strong> <span class="muted">（${timeStr}）</span></div>
+          <div class="muted">${d.email ? `投稿: ${d.email}` : ""}</div>
+          <div><span class="stars">${stars}</span></div>
+          <div>${d.text || ""}</div>
+          <div class="row-actions">
+            <button class="inline-btn" data-action="edit" data-id="${doc.id}">編集</button>
+            <button class="inline-btn danger" data-action="del" data-id="${doc.id}">削除</button>
+          </div>
+        `;
+        commentListEl.appendChild(row);
+      });
+
+      lastVisible = snap.docs[snap.docs.length - 1];
+      pageStack.push(lastVisible);
+      if (direction === "next") pageIndex += 1;
+
+      prevBtn.disabled = pageIndex <= 0;
+      nextBtn.disabled = snap.size < PAGE_SIZE;
+      pageInfoEl.textContent = `ページ ${pageIndex + 1}`;
+    }
+
+    nextBtn.addEventListener("click", () => loadCommentsPage("next"));
+    prevBtn.addEventListener("click", () => loadCommentsPage("prev"));
+    refreshBtn.addEventListener("click", () => { resetPaging(); loadCommentsPage(); });
+
+    // 编辑 / 删除评论
+    commentListEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (!currentShopId || !id) return;
+
+      const ref = db.collection("shops").doc(currentShopId).collection("comments").doc(id);
+
+      if (action === "del") {
+        if (!confirm("このコメントを削除しますか？")) return;
+        try {
+          await ref.delete();
+          alert("削除しました。");
+          resetPaging(); loadCommentsPage();
+        } catch (err) {
+          console.error("削除失敗:", err);
+          alert("削除に失敗しました。");
+        }
+      } else if (action === "edit") {
+        try {
+          const snap = await ref.get();
+          if (!snap.exists) return alert("コメントが見つかりません。");
+          const d = snap.data();
+          const newText = prompt("コメントを編集してください：", d.text || "");
+          if (newText === null) return;
+          let newRating = d.rating || 0;
+          const inputRating = prompt("評価（1〜5）を入力してください：", String(newRating));
+          if (inputRating !== null) {
+            const r = parseInt(inputRating, 10);
+            if (!isNaN(r) && r >= 1 && r <= 5) newRating = r;
+          }
+          await ref.update({ text: newText.trim(), rating: newRating });
+          alert("更新しました。");
+          resetPaging(); loadCommentsPage();
+        } catch (err) {
+          console.error("更新失敗:", err);
+          alert("更新に失敗しました。");
+        }
+      }
+    });
+
+    /* ====================== 用户管理（Firestore users 集合） ====================== */
+    const userTbody = document.getElementById("userTbody");
+    const userSearch = document.getElementById("userSearch");
+    const reloadUsersBtn = document.getElementById("reloadUsers");
+
+    let usersCache = [];  // {uid,email,role,createdAt}
+
+    async function fetchUsers() {
+      userTbody.innerHTML = `<tr><td colspan="5"><small>読み込み中…</small></td></tr>`;
+      try {
+        const snap = await db.collection("users").orderBy("createdAt", "desc").get();
+        usersCache = snap.docs.map(doc => {
+          const d = doc.data() || {};
+          return {
+            uid: doc.id,
+            email: d.email || "",
+            role: d.role || "user",
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate() : (d.createdAt || null)
+          };
+        });
+        renderUsers(usersCache);
+      } catch (e) {
+        console.error("ユーザー取得失敗:", e);
+        userTbody.innerHTML = `<tr><td colspan="5"><small>取得に失敗しました。</small></td></tr>`;
+      }
+    }
+
+    function renderUsers(list) {
+      if (!list.length) {
+        userTbody.innerHTML = `<tr><td colspan="5"><small>該当ユーザーがいません。</small></td></tr>`;
+        return;
+      }
+      userTbody.innerHTML = "";
+      list.forEach(u => {
+        const tr = document.createElement("tr");
+        const createdStr = u.createdAt
+          ? `${u.createdAt.getFullYear()}/${u.createdAt.getMonth()+1}/${u.createdAt.getDate()}`
+          : "-";
+        tr.innerHTML = `
+          <td>${u.email || "-"}</td>
+          <td class="muted">${u.uid}</td>
+          <td>
+            <span class="role-badge ${u.role === "admin" ? "role-admin" : "role-user"}">${u.role}</span>
+          </td>
+          <td class="muted">${createdStr}</td>
+          <td>
+            <button class="inline-btn secondary" data-action="makeUser"  data-uid="${u.uid}">user にする</button>
+            <button class="inline-btn"           data-action="makeAdmin" data-uid="${u.uid}">admin にする</button>
+            <button class="inline-btn danger"    data-action="deleteDoc" data-uid="${u.uid}">Firestore 文書削除</button>
+          </td>
+        `;
+        userTbody.appendChild(tr);
+      });
+    }
+
+    userSearch.addEventListener("input", () => {
+      const kw = userSearch.value.trim().toLowerCase();
+      const filtered = usersCache.filter(u =>
+        (u.email || "").toLowerCase().includes(kw) ||
+        (u.uid || "").toLowerCase().includes(kw)
+      );
+      renderUsers(filtered);
+    });
+
+    reloadUsersBtn.addEventListener("click", fetchUsers);
+
+    // 用户操作：改角色 / 删除 Firestore 文档
+    userTbody.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const uid = btn.dataset.uid;
+      if (!uid) return;
+
+      const ref = db.collection("users").doc(uid);
+
+      try {
+        if (action === "makeAdmin") {
+          await ref.set({ role: "admin" }, { merge: true });
+          alert("権限を admin に変更しました。");
+        } else if (action === "makeUser") {
+          await ref.set({ role: "user" }, { merge: true });
+          alert("権限を user に変更しました。");
+        } else if (action === "deleteDoc") {
+          if (!confirm("Firestore のユーザー文書を削除しますか？（Authentication のアカウントは削除されません）")) return;
+          await ref.delete();
+          alert("Firestore のユーザー文書を削除しました。");
+        }
+        // 变更后刷新
+        fetchUsers();
+        // 如果动到了自己，刷新顶部状态条
+        if (uid === localUid) verifyAdmin();
+      } catch (err) {
+        console.error("ユーザー操作失敗:", err);
+        alert("操作に失敗しました。");
+      }
+    });
+
+    // 初次加载
+    fetchUsers();
+  </script>
+</body>
+</html>
