@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    /* 本页少量补充样式（其余走 style.css） */
     .shop-hero{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:start}
     .shop-hero img{width:100%;border-radius:10px;object-fit:cover;max-height:180px}
     .shop-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
@@ -41,10 +40,9 @@
   <main>
     <section class="intro">
       <h2 id="shopTitle">読み込み中…</h2>
-      <p class="muted" id="subtitle">URLパラメータ ?shop= に店IDまたは店名を指定してください。</p>
+      <p class="muted" id="subtitle">URLパラメータ ?shop= に店IDを指定してください。</p>
     </section>
 
-    <!-- 店铺概要 -->
     <section class="section" id="heroSection" style="display:none;">
       <div class="shop-hero">
         <img id="shopImage" alt="画像" src="" onerror="this.style.display='none'"/>
@@ -56,79 +54,77 @@
       </div>
     </section>
 
-    <!-- 详情信息（可拓展字段） -->
     <section class="section" id="detailSection" style="display:none;">
       <h3>📌 詳細情報</h3>
       <div id="detailContent"></div>
     </section>
 
-    <!-- 评分概览 -->
     <section class="section" id="ratingSummary" style="display:none;">
       <h3>⭐ 評価の概要</h3>
       <div id="avgRating">集計中…</div>
     </section>
 
-    <!-- 评论提交 -->
     <section class="section" id="commentWrite" style="display:none;">
-      <h3>💬 コメントを投稿</h3>
+      <h3>💬 コメントを書く</h3>
+
       <form id="commentForm">
-        <input id="username" type="text" placeholder="お名前（任意）" />
-        <textarea id="usercomment" rows="3" placeholder="コメントを入力"></textarea>
-        <div id="rating-stars" style="margin:6px 0;">
+        <input type="text" id="username" placeholder="お名前（任意）" /><br/>
+        <textarea id="usercomment" rows="3" placeholder="コメントを入力"></textarea><br/>
+
+        <div id="rating-stars">
           <span class="star-input" data-value="1">★</span>
           <span class="star-input" data-value="2">★</span>
           <span class="star-input" data-value="3">★</span>
           <span class="star-input" data-value="4">★</span>
           <span class="star-input" data-value="5">★</span>
         </div>
+
         <button type="submit" class="btn-submit">送信</button>
       </form>
     </section>
 
-    <!-- 评论列表 -->
     <section class="section" id="commentListSec" style="display:none;">
       <h3>🗂 コメント一覧</h3>
       <div id="comments"></div>
-      <div style="margin-top:8px;">
-        <button id="loadMore" class="btn-submit" style="display:none;">もっと見る</button>
-      </div>
+      <button id="loadMore" class="btn-submit" style="display:none;margin-top:6px;">もっと見る</button>
     </section>
 
-    <!-- 未找到 -->
     <section class="section" id="notFound" style="display:none;">
-      <p>該当の店舗が見つかりませんでした。</p>
-      <div class="actions">
-        <a class="btn" href="search.html">🔎 検索に戻る</a>
-      </div>
+      <p>該当店舗が見つかりません。</p>
+      <a class="btn" href="search.html">🔎 検索へ戻る</a>
     </section>
   </main>
 
-  <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
-  </footer>
+  <footer><p>&copy; 2025 神戸外国人支援プロジェクト</p></footer>
 
-  <!-- Firebase compat SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <!-- PapaParse for CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <script>
-    /* ====== 全局状态 & 工具 ====== */
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
-    const q = (k) => new URLSearchParams(location.search).get(k);
-    const SHOP_PARAM = (q("shop") || "").trim();
-
+    /* ✅ 已新增昵称本地变量 */
+    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
     const ROLE  = localStorage.getItem("auth_role") || "user";
     const EMAIL = localStorage.getItem("auth_email") || null;
     const UID   = localStorage.getItem("auth_uid") || null;
 
-    let currentShop = null;   // CSV 行（基础信息）
-    let shopId = null;        // 稳定 ID
-    let lastVisible = null;   // 评论分页游标
-    let selectedRating = 0;
+    /* 登录状态条 */
+    (function () {
+      if (EMAIL) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center";
+        bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8";
+        bar.style.color = "#333";
+        bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE}）`;
+        document.body.prepend(bar);
+      }
+      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+    })();
 
-    /* ====== Firebase 初始化 ====== */
+    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -140,269 +136,135 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ====== 登录状态条 & 管理可见性 ====== */
-    (function () {
-      if (EMAIL) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center";
-        bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8";
-        bar.style.color = "#333";
-        bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE || "user"}）`;
-        document.body.prepend(bar);
-      }
-      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-    })();
+    const CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+    const p = new URLSearchParams(location.search);
+    const key = (p.get("shop") || "").trim();
+    let shopId=null,lastVisible=null,selectedRating=0;
 
-    /* ====== 读取 CSV，定位店铺 ====== */
-    if (!SHOP_PARAM) {
-      document.getElementById("notFound").style.display = "block";
-      document.getElementById("subtitle").textContent = "URLに ?shop= を指定してください。";
-    } else {
-      document.getElementById("subtitle").textContent = `店舗キー: ${SHOP_PARAM}`;
-      Papa.parse(CSV_URL, {
-        download: true, header: true,
-        complete: ({ data }) => {
-          // 先用 id 精确匹配，找不到再用 name 匹配
-          let byId = data.find(r => (r.id || "").trim() === SHOP_PARAM);
-          let byName = data.find(r => !byId && (r.name || "").trim() === SHOP_PARAM);
-          currentShop = byId || byName || null;
-
-          if (!currentShop) {
-            document.getElementById("notFound").style.display = "block";
-            document.getElementById("shopTitle").textContent = "店舗が見つかりません";
-            return;
-          }
-          shopId = (currentShop.id && currentShop.id.trim()) || (currentShop.name || "");
-
-          // 渲染基础信息
-          renderBase(currentShop);
-
-          // 可选：读取 Firestore shops/{id} 的 meta 覆盖/补充
-          db.collection("shops").doc(shopId).get()
-            .then(doc => {
-              const meta = doc.exists ? (doc.data().meta || null) : null;
-              if (meta) applyMeta(meta);
-            })
-            .catch(() => {/* 忽略 */})
-            .finally(() => {
-              // 显示评论区域
-              document.getElementById("commentWrite").style.display = "block";
-              document.getElementById("commentListSec").style.display = "block";
-              // 载入评论 & 概览
-              loadComments(true);
-              calcAvgRating();
-            });
+    if(!key){
+      document.getElementById("notFound").style.display="block";
+    }else{
+      Papa.parse(CSV,{
+        download:true,header:true,
+        complete:({data})=>{
+          let row=data.find(r=>(r.id||"").trim()===key)||data.find(r=>!row&&(r.name||"").trim()===key);
+          if(!row){document.getElementById("notFound").style.display="block";return;}
+          shopId=(row.id||row.name).trim();
+          renderBase(row);
+          document.getElementById("commentWrite").style.display="block";
+          document.getElementById("commentListSec").style.display="block";
+          loadComments(true);
+          calcAvgRating();
         }
       });
     }
 
-    /* ====== 渲染基础信息（来自 CSV） ====== */
-    function renderBase(row) {
-      const title = row.name || "(無名)";
-      const desc  = row.description || "";
-      const img   = row.image || "";
-      const link  = row.link || "";
-      const cat   = (row.category || "").trim();
-      const lat   = row.lat ? parseFloat(row.lat) : null;
-      const lng   = row.lng ? parseFloat(row.lng) : null;
-
-      document.getElementById("shopTitle").textContent = title;
-      document.getElementById("subtitle").textContent = cat ? `カテゴリ: ${cat}` : "";
-
-      const hero = document.getElementById("heroSection");
-      hero.style.display = "block";
-      const imgEl = document.getElementById("shopImage");
-      if (img) imgEl.src = img;
-
-      document.getElementById("shopDesc").innerHTML = desc ? `<p>${desc}</p>` : "";
-
-      const metaEl = document.getElementById("shopMeta");
-      metaEl.innerHTML = "";
-      if (cat) {
-        const badge = document.createElement("span");
-        badge.className = "badge";
-        badge.textContent = cat;
-        metaEl.appendChild(badge);
+    function renderBase(r){
+      document.getElementById("shopTitle").textContent=r.name||"店名";
+      document.getElementById("heroSection").style.display="block";
+      const img=document.getElementById("shopImage");
+      if(r.image) img.src=r.image;
+      document.getElementById("shopDesc").innerHTML=r.description?`<p>${r.description}</p>`:"";
+      const meta=document.getElementById("shopMeta");
+      meta.innerHTML="";
+      const cat=(r.category||"").trim();
+      if(cat){
+        const s=document.createElement("span");
+        s.className="badge";s.textContent=cat;meta.append(s);
       }
-      if (lat && lng) {
-        const ll = document.createElement("span");
-        ll.className = "muted";
-        ll.textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-        metaEl.appendChild(ll);
-      }
-
-      const actions = document.getElementById("shopActions");
-      actions.innerHTML = `
-        ${link ? `<a class="info-link" href="${link}" target="_blank">▶ 詳しく見る</a>` : ""}
+      const actions=document.getElementById("shopActions");
+      actions.innerHTML=`
         <a class="btn" href="map.html?focus=${encodeURIComponent(shopId)}">🗺 地図で見る</a>
         <a class="btn" href="search.html">🔎 検索に戻る</a>
-        ${lat && lng ? `<a class="btn" href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">📍 Googleマップ</a>` : ""}
       `;
     }
 
-    /* ====== 应用 Firestore meta 覆盖/补充（可选） ====== */
-    function applyMeta(meta) {
-      // 你可以在 shops/{id} 文档里放 meta: { address, hours, photos:[], services:[], notes, ... }
-      // 这里按存在即显示的原则渲染
-      const box = document.getElementById("detailSection");
-      const content = document.getElementById("detailContent");
-      let html = "";
+    /* 评论加载 */
+    function loadComments(reset=false){
+      if(!shopId)return;
+      const list=document.getElementById("comments");
+      const more=document.getElementById("loadMore");
+      if(reset){list.innerHTML="";lastVisible=null;}
 
-      if (meta.address) html += `<p><strong>住所:</strong> ${meta.address}</p>`;
-      if (meta.hours)   html += `<p><strong>営業時間:</strong> ${meta.hours}</p>`;
-      if (Array.isArray(meta.services) && meta.services.length) {
-        html += `<p><strong>サービス:</strong> ${meta.services.join(" / ")}</p>`;
-      }
-      if (meta.tel)     html += `<p><strong>電話:</strong> ${meta.tel}</p>`;
-      if (meta.notes)   html += `<p><strong>備考:</strong> ${meta.notes}</p>`;
+      let ref=db.collection("shops").doc(shopId).collection("comments").orderBy("time","desc").limit(5);
+      if(lastVisible)ref=ref.startAfter(lastVisible);
 
-      if (Array.isArray(meta.photos) && meta.photos.length) {
-        html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">` +
-                meta.photos.map(u => `<img src="${u}" alt="photo" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #eee">`).join("") +
-                `</div>`;
-      }
-
-      if (html) {
-        content.innerHTML = html;
-        box.style.display = "block";
-      }
-    }
-
-    /* ====== 评论：加载（分页） ====== */
-    function loadComments(reset=false) {
-      if (!shopId) return;
-      const listEl = document.getElementById("comments");
-      const moreBtn = document.getElementById("loadMore");
-      document.getElementById("ratingSummary").style.display = "block";
-
-      if (reset) { listEl.innerHTML=""; lastVisible=null; }
-
-      let ref = db.collection("shops").doc(shopId).collection("comments")
-                  .orderBy("time","desc").limit(5);
-      if (lastVisible) ref = ref.startAfter(lastVisible);
-
-      ref.get().then(snap => {
-        if (snap.empty) {
-          moreBtn.style.display = "none";
-          if (reset) listEl.innerHTML = "<small>コメントがまだありません。</small>";
+      ref.get().then(snap=>{
+        if(snap.empty){
+          more.style.display="none";
+          if(reset) list.innerHTML="<small>コメントがありません</small>";
           return;
         }
-        snap.forEach(doc => {
-          const d = doc.data();
-          const id = doc.id;
-          const t = d.time?.toDate ? d.time.toDate() : new Date();
-          const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
-          const stars = "★".repeat(d.rating || 0) + "☆".repeat(5 - (d.rating || 0));
-          const row = document.createElement("div");
-          row.className = "comment";
-          row.innerHTML = `
-            <strong>${d.name || "匿名"}</strong> <span class="stars">${stars}</span><br/>
-            ${d.text ? `<div>${d.text}</div>` : ""}
-            <small class="muted">${timeStr}${d.email ? ` ・ ${d.email}` : ""}</small>
-            ${ROLE === "admin" ? `
-              <div style="margin-top:6px;">
-                <button class="btn-submit admin-only" data-action="edit" data-id="${id}" style="padding:6px 10px;">編集</button>
-                <button class="btn-submit admin-only" data-action="del"  data-id="${id}" style="padding:6px 10px;background:#a30000;">削除</button>
-              </div>
-            ` : ""}
+        snap.forEach(doc=>{
+          const d=doc.data();
+          const time=new Date(d.time.seconds*1000);
+          const stars="★".repeat(d.rating||0)+"☆".repeat(5-(d.rating||0));
+          const row=document.createElement("div");
+          row.className="comment";
+          row.innerHTML=`
+            <strong>${d.name||"匿名"}</strong> <span class="stars">${stars}</span><br/>
+            ${d.text}<br/>
+            <small>${time.toLocaleString()}</small>
           `;
-          listEl.appendChild(row);
+          list.append(row);
         });
-        lastVisible = snap.docs[snap.docs.length - 1];
-        moreBtn.style.display = snap.size < 5 ? "none" : "block";
+        lastVisible=snap.docs[snap.docs.length-1];
+        more.style.display=snap.size<5?"none":"block";
       });
     }
-    document.getElementById("loadMore").addEventListener("click", () => loadComments(false));
+    document.getElementById("loadMore").onclick=()=>loadComments();
 
-    /* ====== 评分概览（平均分 + 计数） ====== */
-    function calcAvgRating() {
-      if (!shopId) return;
-      const out = document.getElementById("avgRating");
-      db.collection("shops").doc(shopId).collection("comments").get().then(snap => {
-        if (snap.empty) { out.textContent = "まだ評価がありません。"; return; }
-        let sum=0, n=0;
-        snap.forEach(doc => { const r = doc.data().rating||0; sum+=r; n++; });
-        const avg = (sum/n).toFixed(2);
-        out.innerHTML = `平均評価: <strong>${avg}</strong> / 5 （${n} 件）`;
-      }).catch(()=>{ out.textContent = "集計に失敗しました。"; });
-    }
-
-    /* ====== 提交评论（含 uid/email，满足规则） ====== */
-    document.getElementById("commentForm").addEventListener("submit", e => {
+    /* ✅ 提交评论（优先使用昵称） */
+    document.getElementById("commentForm").addEventListener("submit",e=>{
       e.preventDefault();
-      if (!shopId) return;
-
-      const name = (document.getElementById("username").value || "").trim() || "匿名";
-      const text = (document.getElementById("usercomment").value || "").trim();
-      if (!text) return alert("コメントを入力してください。");
+      const typed=(document.getElementById("username").value||"").trim();
+      const name=(PROFILE_NAME&&PROFILE_NAME.trim())?PROFILE_NAME.trim():(typed||"匿名");
+      const text=(document.getElementById("usercomment").value||"").trim();
+      if(!text)return alert("コメントを入力してください。");
 
       db.collection("shops").doc(shopId).collection("comments").add({
-        uid: UID || null,
-        email: EMAIL || null,
-        name, text,
-        rating: selectedRating || 0,
-        time: new Date()
-      }).then(() => {
-        document.getElementById("username").value = "";
-        document.getElementById("usercomment").value = "";
-        selectedRating = 0;
-        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
-        alert("コメントが送信されました。");
+        name,text,rating:selectedRating||0,
+        uid:UID||null,email:EMAIL||null,
+        time:new Date()
+      }).then(()=>{
+        document.getElementById("usercomment").value="";
+        selectedRating=0;
+        document.querySelectorAll(".star-input").forEach(x=>x.classList.remove("selected"));
+        alert("送信しました！");
         loadComments(true);
         calcAvgRating();
-      }).catch(err => {
-        console.error(err);
-        alert("送信に失敗しました。ログイン状態やネットワークを確認してください。");
       });
     });
 
-    /* ====== 星级评分交互 ====== */
-    document.querySelectorAll(".star-input").forEach(star => {
-      star.addEventListener("click", () => {
-        selectedRating = parseInt(star.dataset.value, 10);
-        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
-        for (let i=1;i<=selectedRating;i++){
-          const node=document.querySelector(`.star-input[data-value='${i}']`);
-          if (node) node.classList.add("selected");
-        }
+    /* ✅ 有昵称自动填入并隐藏输入框 */
+    if(PROFILE_NAME){
+      const nm=document.getElementById("username");
+      nm.value=PROFILE_NAME;
+      nm.parentElement.style.display="none";
+    }
+
+    /* 星级评分 */
+    document.querySelectorAll(".star-input").forEach(s=>{
+      s.addEventListener("click",()=>{
+        selectedRating=parseInt(s.dataset.value);
+        document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
+        for(let i=1;i<=selectedRating;i++)
+          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
       });
     });
 
-    /* ====== 管理员：编辑 / 删除 ====== */
-    document.getElementById("comments").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-action]");
-      if (!btn) return;
-      if (ROLE !== "admin") return alert("権限がありません。");
-
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      const ref = db.collection("shops").doc(shopId).collection("comments").doc(id);
-
-      if (action === "del") {
-        if (!confirm("このコメントを削除しますか？")) return;
-        try { await ref.delete(); alert("削除しました。"); loadComments(true); calcAvgRating(); }
-        catch (err){ console.error(err); alert("削除に失敗しました。"); }
-      } else if (action === "edit") {
-        try {
-          const snap = await ref.get();
-          if (!snap.exists) return alert("コメントが見つかりません。");
-          const d = snap.data();
-          const newText = prompt("コメントを編集してください：", d.text || "");
-          if (newText === null) return;
-          let newRating = d.rating || 0;
-          const inputRating = prompt("評価（1〜5）を入力してください：", String(newRating));
-          if (inputRating !== null) {
-            const r = parseInt(inputRating, 10);
-            if (!isNaN(r) && r >= 1 && r <= 5) newRating = r;
-          }
-          await ref.update({ text: (newText||"").trim(), rating: newRating });
-          alert("更新しました。");
-          loadComments(true); calcAvgRating();
-        } catch (err){ console.error(err); alert("更新に失敗しました。"); }
-      }
-    });
+    /* 平均评价 */
+    function calcAvgRating(){
+      if(!shopId)return;
+      db.collection("shops").doc(shopId).collection("comments").get().then(snap=>{
+        if(snap.empty)return;
+        let sum=0;
+        snap.forEach(doc=>sum+=(doc.data().rating||0));
+        const avg=(sum/snap.size).toFixed(2);
+        document.getElementById("ratingSummary").style.display="block";
+        document.getElementById("avgRating").innerHTML=`平均評価: <strong>${avg}</strong> / 5（${snap.size}件）`;
+      });
+    }
   </script>
 </body>
 </html>

@@ -131,16 +131,34 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ========= 页面状态 ========= */
+    /* ========= 页面/登录状态 ========= */
+    const ROLE  = localStorage.getItem("auth_role") || "user";
+    const EMAIL = localStorage.getItem("auth_email") || null;
+    const UID   = localStorage.getItem("auth_uid") || null;
+    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null; // ✅ 昵称
+    (function () {
+      if (EMAIL) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center";
+        bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8";
+        bar.style.color = "#333";
+        bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE || "user"}）`;
+        document.body.prepend(bar);
+      }
+      if (ROLE !== "admin") {
+        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+      }
+    })();
+
+    /* ========= 全局状态 ========= */
     let allMarkers = [];
     let currentShopId = null;
     let lastVisible = null;        // 分页游标
     let selectedRating = 0;
-    const ROLE  = localStorage.getItem("auth_role") || "user";
-    const EMAIL = localStorage.getItem("auth_email") || null;
-    const UID   = localStorage.getItem("auth_uid") || null;
 
-    /* ========= A. URL 参数与聚焦函数（放在 initMap 外，与 initMap 同级） ========= */
+    /* ========= A. URL 参数与聚焦函数 ========= */
     function getQueryParam(name){
       const p = new URLSearchParams(window.location.search);
       return p.get(name);
@@ -178,7 +196,7 @@
               map
             });
 
-            // B. 给 marker 记录店铺 id（id 优先、无 id 用 name）
+            // ✅ B. 给 marker 记录店铺 id（id 优先、无 id 用 name）
             marker._shopId = (place.id && place.id.trim()) ? place.id.trim() : (place.name || "");
 
             const infoHtml = [
@@ -206,6 +224,19 @@
                 </p>
               `;
 
+              // 有昵称 → 自动填入并隐藏名字输入框
+              if (PROFILE_NAME) {
+                const nameInput = document.getElementById("username");
+                if (nameInput) {
+                  nameInput.value = PROFILE_NAME;
+                  nameInput.parentElement.style.display = "none";
+                }
+              } else {
+                // 没昵称则确保输入框显示
+                const nameInput = document.getElementById("username");
+                if (nameInput) nameInput.parentElement.style.display = "";
+              }
+
               // 打开评论面板并加载评论
               document.getElementById("comment-box").classList.add("active");
               document.getElementById("comments").innerHTML = "<small>読み込み中...</small>";
@@ -218,7 +249,7 @@
             return marker;
           }).filter(Boolean);
 
-          // C. 所有标记创建完成后，尝试按 ?focus= 聚焦
+          // ✅ C. 所有标记创建完成后，尝试按 ?focus= 聚焦
           focusFromQuery();
         }
       });
@@ -312,13 +343,14 @@
       });
     });
 
-    /* ========= 提交评论（包含 uid/email，满足安全规则） ========= */
+    /* ========= 提交评论（包含 uid/email，优先使用昵称） ========= */
     document.getElementById("comment-form").addEventListener("submit", e => {
       e.preventDefault();
       if (!currentShopId) return alert("店舗が選択されていません。");
 
-      const name = document.getElementById("username").value.trim() || "匿名";
-      const text = document.getElementById("usercomment").value.trim();
+      const typed = (document.getElementById("username").value || "").trim();
+      const name  = (PROFILE_NAME && PROFILE_NAME.trim()) ? PROFILE_NAME.trim() : (typed || "匿名");
+      const text  = (document.getElementById("usercomment").value || "").trim();
       if (!text) return alert("コメントを入力してください。");
 
       db.collection("shops").doc(currentShopId).collection("comments").add({
@@ -385,24 +417,6 @@
         }
       }
     });
-
-    /* ========= 页面联动：显示登录状态、非 admin 隐藏 .admin-only ========= */
-    (function () {
-      const email = EMAIL; const role = ROLE;
-      if (email) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center";
-        bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8";
-        bar.style.color = "#333";
-        bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
-        document.body.prepend(bar);
-      }
-      if (role !== "admin") {
-        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-      }
-    })();
   </script>
 
   <!-- Google Maps（保持 async+callback ） -->
