@@ -8,39 +8,12 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    /* 仅本页必需的少量样式（其余走 style.css） */
-    #map {
-      height: 500px;
-      width: 90%;
-      margin: 20px auto;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-    }
-    #searchBox {
-      width: 80%;
-      max-width: 400px;
-      margin: 10px auto;
-      display: block;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #999;
-      font-size: 16px;
-    }
+    #map { height: 500px; width: 90%; margin: 20px auto; border: 1px solid #ccc; border-radius: 10px; }
+    #searchBox { width: 80%; max-width: 400px; margin: 10px auto; display: block; padding: 8px 10px; border-radius: 8px; border: 1px solid #999; font-size: 16px; }
     .info-img { width: 100%; max-width: 150px; margin-top: 6px; border-radius: 5px; }
     .info-link { display:inline-block; margin-top:8px; padding:4px 8px; background:#0a66c2; color:#fff; text-decoration:none; border-radius:4px; font-size:13px; }
 
-    /* 评论下滑面板 */
-    #comment-box {
-      position: fixed;
-      bottom: -100%;
-      left: 0;
-      width: 100%;
-      background: #fff;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
-      transition: bottom 0.4s;
-      padding: 1em;
-      z-index: 999;
-    }
+    #comment-box { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); transition: bottom 0.4s; padding: 1em; z-index: 999; }
     #comment-box.active { bottom: 0; }
     .store-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .close-btn { background:none; border:none; font-size:20px; cursor:pointer; }
@@ -63,6 +36,7 @@
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
       <a href="login.html" class="btn">🔐 ログイン</a>
       <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
@@ -89,7 +63,6 @@
       <input type="text" id="username" placeholder="お名前（任意）"><br>
       <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
 
-      <!-- 星级评分 -->
       <div id="rating-stars" class="star-rating">
         <span class="star-input" data-value="1">★</span>
         <span class="star-input" data-value="2">★</span>
@@ -114,14 +87,11 @@
   <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-  <!-- PapaParse for CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <script>
-    /* ========= Firebase ========= */
     const firebaseConfig = {
-      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+      apiKey: "AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g",
       authDomain: "kobe-life-guide.firebaseapp.com",
       projectId: "kobe-life-guide",
       storageBucket: "kobe-life-guide.firebasestorage.app",
@@ -131,11 +101,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ========= 页面/登录状态 ========= */
     const ROLE  = localStorage.getItem("auth_role") || "user";
     const EMAIL = localStorage.getItem("auth_email") || null;
     const UID   = localStorage.getItem("auth_uid") || null;
-    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null; // ✅ 昵称
+    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
+
     (function () {
       if (EMAIL) {
         const bar = document.createElement("div");
@@ -147,18 +117,14 @@
         bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE || "user"}）`;
         document.body.prepend(bar);
       }
-      if (ROLE !== "admin") {
-        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-      }
+      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
     })();
 
-    /* ========= 全局状态 ========= */
     let allMarkers = [];
     let currentShopId = null;
-    let lastVisible = null;        // 分页游标
+    let lastVisible = null;
     let selectedRating = 0;
 
-    /* ========= A. URL 参数与聚焦函数 ========= */
     function getQueryParam(name){
       const p = new URLSearchParams(window.location.search);
       return p.get(name);
@@ -169,19 +135,18 @@
       const m = allMarkers.find(mk => {
         const id = (mk._shopId || "").trim();
         const nm = (mk.name || "").trim();
-        return id === target || nm === target;  // 兼容 id 或 name
+        return id === target || nm === target;
       });
       if (m) {
         const map = m.getMap();
         map.setCenter(m.getPosition());
         map.setZoom(17);
-        google.maps.event.trigger(m, "click"); // 打开 infoWindow + 面板
+        google.maps.event.trigger(m, "click");
       }
     }
 
-    /* ========= 初始化地图 & 加载店铺 ========= */
     function initMap() {
-      const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅
+      const center = { lat: 34.6951, lng: 135.1955 };
       const map = new google.maps.Map(document.getElementById("map"), { zoom: 15, center });
 
       Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv", {
@@ -196,7 +161,6 @@
               map
             });
 
-            // ✅ B. 给 marker 记录店铺 id（id 优先、无 id 用 name）
             marker._shopId = (place.id && place.id.trim()) ? place.id.trim() : (place.name || "");
 
             const infoHtml = [
@@ -213,7 +177,6 @@
               infoWindow.open(map, marker);
               currentShopId = marker._shopId;
 
-              // 面板店铺信息
               document.getElementById("shop-name").textContent = place.name || "店名";
               document.getElementById("store-info").innerHTML = `
                 ${place.description ? `<p>${place.description}</p>` : ""}
@@ -224,20 +187,23 @@
                 </p>
               `;
 
-              // 有昵称 → 自动填入并隐藏名字输入框
-              if (PROFILE_NAME) {
-                const nameInput = document.getElementById("username");
-                if (nameInput) {
-                  nameInput.value = PROFILE_NAME;
-                  nameInput.parentElement.style.display = "none";
+              // ★★★ 昵称修复：只读 + 提示（不隐藏表单）
+              const nameInput = document.getElementById("username");
+              if (PROFILE_NAME && nameInput) {
+                nameInput.value = PROFILE_NAME;
+                nameInput.readOnly = true;
+                nameInput.style.opacity = "0.6";
+                nameInput.title = "プロフィールの表示名が使用されます";
+                const oldTip = nameInput.nextElementSibling;
+                if (!oldTip || !oldTip.classList.contains("muted")) {
+                  const tip = document.createElement("div");
+                  tip.className = "muted";
+                  tip.style.marginTop = "6px";
+                  tip.textContent = `表示名として「${PROFILE_NAME}」を使用します。`;
+                  nameInput.insertAdjacentElement("afterend", tip);
                 }
-              } else {
-                // 没昵称则确保输入框显示
-                const nameInput = document.getElementById("username");
-                if (nameInput) nameInput.parentElement.style.display = "";
               }
 
-              // 打开评论面板并加载评论
               document.getElementById("comment-box").classList.add("active");
               document.getElementById("comments").innerHTML = "<small>読み込み中...</small>";
               loadComments(true);
@@ -249,12 +215,10 @@
             return marker;
           }).filter(Boolean);
 
-          // ✅ C. 所有标记创建完成后，尝试按 ?focus= 聚焦
           focusFromQuery();
         }
       });
 
-      // 搜索过滤
       document.getElementById("searchBox").addEventListener("input", e => {
         const keyword = e.target.value.toLowerCase();
         allMarkers.forEach(marker => {
@@ -265,18 +229,15 @@
         });
       });
 
-      // 点击地图空白处关闭面板
       map.addListener("click", () => {
         document.getElementById("comment-box").classList.remove("active");
       });
     }
 
-    // 关闭按钮
     document.getElementById("close-btn").onclick = () => {
       document.getElementById("comment-box").classList.remove("active");
     };
 
-    /* ========= 加载评论（分页） ========= */
     function loadComments(reset = false) {
       if (!currentShopId) return;
 
@@ -299,25 +260,17 @@
 
         snapshot.forEach(doc => {
           const d = doc.data();
-          const id = doc.id;
           const t = d.time?.toDate ? d.time.toDate() : new Date();
           const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
           const stars = "★".repeat(d.rating || 0) + "☆".repeat(5 - (d.rating || 0));
 
           const div = document.createElement("div");
           div.className = "comment";
-          div.dataset.id = id;
           div.innerHTML = `
             <strong>${d.name || "匿名"}</strong>
             <span class="stars">${stars}</span><br/>
             ${d.text ? `<div>${d.text}</div>` : ""}
             <small>${timeStr}</small>
-            ${ROLE === "admin" ? `
-              <div style="margin-top:6px;">
-                <button class="btn-submit admin-only" data-action="edit" data-id="${id}" style="padding:6px 10px;">編集</button>
-                <button class="btn-submit admin-only" data-action="del" data-id="${id}" style="padding:6px 10px;background:#a30000;">削除</button>
-              </div>
-            ` : ""}
           `;
           listEl.appendChild(div);
         });
@@ -331,7 +284,6 @@
 
     document.getElementById("loadMore").onclick = () => loadComments(false);
 
-    /* ========= 星级评分交互 ========= */
     document.querySelectorAll(".star-input").forEach(star => {
       star.addEventListener("click", () => {
         selectedRating = parseInt(star.dataset.value, 10);
@@ -343,7 +295,6 @@
       });
     });
 
-    /* ========= 提交评论（包含 uid/email，优先使用昵称） ========= */
     document.getElementById("comment-form").addEventListener("submit", e => {
       e.preventDefault();
       if (!currentShopId) return alert("店舗が選択されていません。");
@@ -354,15 +305,15 @@
       if (!text) return alert("コメントを入力してください。");
 
       db.collection("shops").doc(currentShopId).collection("comments").add({
-        uid: UID || null,          // 规则用：与 request.auth.uid 对应
-        email: EMAIL || null,      // 规则用：与 request.auth.token.email 对应
+        uid: UID || null,
+        email: EMAIL || null,
         name,
         text,
         rating: selectedRating || 0,
         time: new Date()
       }).then(() => {
         document.getElementById("usercomment").value = "";
-        document.getElementById("username").value = "";
+        document.getElementById("username").value = PROFILE_NAME || "";
         selectedRating = 0;
         document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
         alert("コメントが送信されました。");
@@ -372,54 +323,8 @@
         alert("送信に失敗しました。ログイン状態やネットワークを確認してください。");
       });
     });
-
-    /* ========= 管理员：编辑 / 删除 ========= */
-    document.getElementById("comments").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-action]");
-      if (!btn) return;
-      if (ROLE !== "admin") return alert("権限がありません。");
-
-      const action = btn.dataset.action;
-      const commentId = btn.dataset.id;
-      if (!currentShopId || !commentId) return;
-
-      const ref = db.collection("shops").doc(currentShopId).collection("comments").doc(commentId);
-
-      if (action === "del") {
-        if (!confirm("このコメントを削除しますか？")) return;
-        try {
-          await ref.delete();
-          alert("削除しました。");
-          loadComments(true);
-        } catch (err) {
-          console.error("削除失敗:", err);
-          alert("削除に失敗しました。");
-        }
-      } else if (action === "edit") {
-        try {
-          const snap = await ref.get();
-          if (!snap.exists) return alert("コメントが見つかりません。");
-          const d = snap.data();
-          const newText = prompt("コメントを編集してください：", d.text || "");
-          if (newText === null) return; // 取消
-          let newRating = d.rating || 0;
-          const inputRating = prompt("評価（1〜5）を入力してください：", String(newRating));
-          if (inputRating !== null) {
-            const r = parseInt(inputRating, 10);
-            if (!isNaN(r) && r >= 1 && r <= 5) newRating = r;
-          }
-          await ref.update({ text: (newText || "").trim(), rating: newRating });
-          alert("更新しました。");
-          loadComments(true);
-        } catch (err) {
-          console.error("更新失敗:", err);
-          alert("更新に失敗しました。");
-        }
-      }
-    });
   </script>
 
-  <!-- Google Maps（保持 async+callback ） -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
 </body>
 </html>

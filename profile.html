@@ -25,6 +25,7 @@
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
       <a href="login.html" class="btn">🔐 ログイン</a>
       <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
@@ -106,13 +107,12 @@
     } else {
       statusEl.textContent = "ユーザーデータを読み込み中…";
       emailEl.value = email;
-      // 读取 Firestore users/{uid}
       db.collection("users").doc(uid).get().then(doc => {
         if (doc.exists) {
           const d = doc.data();
           if (d.displayName) {
             nameEl.value = d.displayName;
-            localStorage.setItem("profile_displayName", d.displayName); // 本地缓存
+            localStorage.setItem("profile_displayName", d.displayName);
           }
           statusEl.textContent = "プロフィールを編集できます。";
         } else {
@@ -130,10 +130,7 @@
       const dn = (nameEl.value || "").trim();
       if (dn.length < 2 || dn.length > 40) return alert("表示名は2〜40文字で入力してください。");
       try {
-        await db.collection("users").doc(uid).set({
-          email: email,
-          displayName: dn
-        }, { merge: true });
+        await db.collection("users").doc(uid).set({ email, displayName: dn }, { merge: true });
         localStorage.setItem("profile_displayName", dn);
         statusEl.textContent = "保存しました。コメント投稿時にこの名前が使われます。";
         alert("プロフィールを保存しました。");

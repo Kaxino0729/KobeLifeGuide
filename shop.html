@@ -32,6 +32,7 @@
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
       <a href="login.html" class="btn">🔐 ログイン</a>
       <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
@@ -66,11 +67,9 @@
 
     <section class="section" id="commentWrite" style="display:none;">
       <h3>💬 コメントを書く</h3>
-
       <form id="commentForm">
         <input type="text" id="username" placeholder="お名前（任意）" /><br/>
         <textarea id="usercomment" rows="3" placeholder="コメントを入力"></textarea><br/>
-
         <div id="rating-stars">
           <span class="star-input" data-value="1">★</span>
           <span class="star-input" data-value="2">★</span>
@@ -78,7 +77,6 @@
           <span class="star-input" data-value="4">★</span>
           <span class="star-input" data-value="5">★</span>
         </div>
-
         <button type="submit" class="btn-submit">送信</button>
       </form>
     </section>
@@ -103,13 +101,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <script>
-    /* ✅ 已新增昵称本地变量 */
     const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
     const ROLE  = localStorage.getItem("auth_role") || "user";
     const EMAIL = localStorage.getItem("auth_email") || null;
     const UID   = localStorage.getItem("auth_uid") || null;
 
-    /* 登录状态条 */
     (function () {
       if (EMAIL) {
         const bar = document.createElement("div");
@@ -124,7 +120,6 @@
       if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
     })();
 
-    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -179,16 +174,13 @@
       `;
     }
 
-    /* 评论加载 */
     function loadComments(reset=false){
       if(!shopId)return;
       const list=document.getElementById("comments");
       const more=document.getElementById("loadMore");
       if(reset){list.innerHTML="";lastVisible=null;}
-
       let ref=db.collection("shops").doc(shopId).collection("comments").orderBy("time","desc").limit(5);
       if(lastVisible)ref=ref.startAfter(lastVisible);
-
       ref.get().then(snap=>{
         if(snap.empty){
           more.style.display="none";
@@ -197,14 +189,14 @@
         }
         snap.forEach(doc=>{
           const d=doc.data();
-          const time=new Date(d.time.seconds*1000);
+          const time=d.time?.toDate?d.time.toDate():new Date();
           const stars="★".repeat(d.rating||0)+"☆".repeat(5-(d.rating||0));
           const row=document.createElement("div");
           row.className="comment";
           row.innerHTML=`
             <strong>${d.name||"匿名"}</strong> <span class="stars">${stars}</span><br/>
-            ${d.text}<br/>
-            <small>${time.toLocaleString()}</small>
+            ${d.text?`<div>${d.text}</div>`:""}
+            <small class="muted">${time.getFullYear()}/${time.getMonth()+1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}</small>
           `;
           list.append(row);
         });
@@ -214,14 +206,37 @@
     }
     document.getElementById("loadMore").onclick=()=>loadComments();
 
-    /* ✅ 提交评论（优先使用昵称） */
+    // ★★★ 昵称修复：只读 + 提示（不隐藏表单）
+    if (PROFILE_NAME) {
+      const nameInput = document.getElementById("username");
+      if (nameInput) {
+        nameInput.value = PROFILE_NAME;
+        nameInput.readOnly = true;
+        nameInput.style.opacity = "0.6";
+        nameInput.title = "プロフィールの表示名が使用されます";
+        const tip = document.createElement("div");
+        tip.className = "muted";
+        tip.style.marginTop = "6px";
+        tip.textContent = `表示名として「${PROFILE_NAME}」を使用します。`;
+        nameInput.insertAdjacentElement("afterend", tip);
+      }
+    }
+
+    document.querySelectorAll(".star-input").forEach(s=>{
+      s.addEventListener("click",()=>{
+        selectedRating=parseInt(s.dataset.value);
+        document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
+        for(let i=1;i<=selectedRating;i++)
+          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
+      });
+    });
+
     document.getElementById("commentForm").addEventListener("submit",e=>{
       e.preventDefault();
       const typed=(document.getElementById("username").value||"").trim();
       const name=(PROFILE_NAME&&PROFILE_NAME.trim())?PROFILE_NAME.trim():(typed||"匿名");
       const text=(document.getElementById("usercomment").value||"").trim();
       if(!text)return alert("コメントを入力してください。");
-
       db.collection("shops").doc(shopId).collection("comments").add({
         name,text,rating:selectedRating||0,
         uid:UID||null,email:EMAIL||null,
@@ -236,24 +251,6 @@
       });
     });
 
-    /* ✅ 有昵称自动填入并隐藏输入框 */
-    if(PROFILE_NAME){
-      const nm=document.getElementById("username");
-      nm.value=PROFILE_NAME;
-      nm.parentElement.style.display="none";
-    }
-
-    /* 星级评分 */
-    document.querySelectorAll(".star-input").forEach(s=>{
-      s.addEventListener("click",()=>{
-        selectedRating=parseInt(s.dataset.value);
-        document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
-        for(let i=1;i<=selectedRating;i++)
-          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
-      });
-    });
-
-    /* 平均评价 */
     function calcAvgRating(){
       if(!shopId)return;
       db.collection("shops").doc(shopId).collection("comments").get().then(snap=>{
