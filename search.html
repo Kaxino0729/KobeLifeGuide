@@ -4,23 +4,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>店舗検索 - 神戸外国人生活ガイド</title>
+  <title>検索 - 神戸外国人生活ガイド</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    .search-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;}
-    .search-bar input[type="text"]{flex:1;min-width:220px;padding:8px;border:1px solid #999;border-radius:8px;}
-    .search-bar select,.search-bar button{padding:8px;border-radius:8px;border:1px solid #999;background:#fff;}
-    .chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;}
-    .chip{padding:6px 10px;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;background:#f8fafc;font-size:14px}
+    /* 仅本页必要的少量样式（不改动全站样式） */
+    .search-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px auto;max-width:860px}
+    .search-input{flex:1;min-width:220px;max-width:520px;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
+    .btn,.chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;text-decoration:none}
+    .chip{font-size:14px}
     .chip.active{background:#0a66c2;color:#fff;border-color:#0a66c2}
-    .results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
-    .card.shop{padding:12px}
     .muted{color:#64748b;font-size:12px}
-    .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
-    .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-    .badge{padding:2px 8px;border-radius:999px;background:#eef;font-size:12px}
-    @media (max-width:480px){.search-bar{flex-direction:column;align-items:stretch}}
+    .result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1000px;margin:18px auto}
+    .card{background:#fff;border:1px solid #e6e6e6;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+    .thumb{width:100%;height:160px;object-fit:cover;background:#f2f4f7}
+    .card-body{padding:12px}
+    .badge{display:inline-block;background:#eef;padding:2px 8px;border-radius:999px;font-size:12px;margin-right:6px}
+    .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    @media (max-width:900px){.result-grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:640px){.result-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -31,31 +33,28 @@
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
+      <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
       <a href="login.html" class="btn">🔐 ログイン</a>
+      <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
   </header>
 
   <main>
-    <section class="intro">
-      <h2>📍 神戸・三宮周辺の店舗を検索</h2>
-      <p class="muted">キーワード、カテゴリ、並び替えで絞り込みできます。位置情報を許可すると距離順の並び替えが可能になります。</p>
-    </section>
+    <section class="intro" style="text-align:center;max-width:920px;margin:0 auto;">
+      <p class="muted">キーワード・カテゴリで店舗を探し、「店舗詳細」または「地図で見る」から遷移できます。</p>
 
-    <section class="card">
       <div class="search-bar">
-        <input id="kw" type="text" placeholder="店名 / 説明 / リンクで検索…" />
-        <select id="sort">
-          <option value="name">名前順</option>
-          <option value="distance">距離順（位置情報）</option>
-        </select>
-        <button id="locateBtn" title="現在地を取得">📍 現在地</button>
-        <button id="clearBtn">クリア</button>
+        <input id="q" class="search-input" type="search" placeholder="店名・説明で検索（例：ドンキ / ダイソー / SIM / 銀行）" />
+        <button id="clearBtn" class="btn" title="条件クリア"><i class="fa-solid fa-eraser"></i> クリア</button>
       </div>
-      <div id="categoryChips" class="chips"></div>
-      <div id="summary" class="muted" style="margin-top:6px;"></div>
+
+      <div id="chips" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px;"></div>
+
+      <div id="stats" class="muted" style="margin-top:8px;">読み込み中…</div>
     </section>
 
-    <section class="results" id="results"></section>
+    <section class="result-grid" id="results"></section>
   </main>
 
   <footer>
@@ -65,175 +64,154 @@
   <!-- PapaParse 读取 CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
+    // 登录状态条（不依赖 Firebase，仅使用 localStorage 展示）
+    (function () {
+      const email = localStorage.getItem("auth_email");
+      const role  = localStorage.getItem("auth_role") || "user";
+      if (email) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center"; bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8"; bar.style.color = "#333"; bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${email}（役割: ${role}）`;
+        document.body.prepend(bar);
+      }
+      if (role !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+    })();
+
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
 
-    const $ = sel => document.querySelector(sel);
-    const resultsEl = $("#results");
-    const summaryEl = $("#summary");
-    const chipsEl = $("#categoryChips");
-    const kwEl = $("#kw");
-    const sortEl = $("#sort");
-    const locateBtn = $("#locateBtn");
-    const clearBtn = $("#clearBtn");
+    const $q = document.getElementById("q");
+    const $chips = document.getElementById("chips");
+    const $results = document.getElementById("results");
+    const $stats = document.getElementById("stats");
+    const $clear = document.getElementById("clearBtn");
 
-    let ALL = [];          // 原始数据
-    let FILTERED = [];     // 过滤结果
-    let CATS = [];         // 类别
-    let activeCats = new Set();
-    let userPos = null;    // {lat,lng}
+    let RAW = [];           // 原始 CSV 行
+    let CATS = [];          // 类别列表
+    let state = { q: "", cat: "すべて" };
 
-    // 读取 CSV
+    // 读取 URL 参数（支持直达）
+    (function initFromQuery(){
+      const p = new URLSearchParams(location.search);
+      const q = (p.get("q") || "").trim();
+      const cat = (p.get("cat") || "").trim();
+      if (q) { state.q = q; $q.value = q; }
+      if (cat) { state.cat = cat; }
+    })();
+
+    // 加载 CSV
     Papa.parse(CSV_URL, {
       download: true,
       header: true,
       complete: ({ data }) => {
-        ALL = data
-          .filter(r => r && (r.id || r.name))
-          .map(r => ({
-            id: (r.id && r.id.trim()) || (r.name && r.name.trim()) || "",
-            name: r.name || "",
-            description: r.description || "",
-            link: r.link || "",
-            image: r.image || "",
-            category: r.category || "",
-            lat: r.lat ? parseFloat(r.lat) : null,
-            lng: r.lng ? parseFloat(r.lng) : null
-          }));
+        RAW = (data || []).filter(r => (r.name && r.name.trim()) || (r.id && r.id.trim()));
         buildCategories();
-        applyFilters();
+        renderChips();
+        applyFilter();
+        // 输入时实时过滤（含回车）
+        $q.addEventListener("input", debounce(() => { state.q = $q.value.trim(); syncQuery(); applyFilter(); }, 120));
+        $q.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); state.q=$q.value.trim(); syncQuery(); applyFilter(); }});
+        $clear.addEventListener("click", ()=>{ state.q=""; state.cat="すべて"; $q.value=""; renderChips(); syncQuery(); applyFilter(); });
       }
     });
 
-    function buildCategories() {
+    // 分类去重构建
+    function buildCategories(){
       const set = new Set();
-      ALL.forEach(x => { if ((x.category || "").trim()) set.add(x.category.trim()); });
-      CATS = Array.from(set).sort((a,b) => a.localeCompare(b, "ja"));
-      chipsEl.innerHTML = "";
-      if (CATS.length === 0) { chipsEl.style.display = "none"; return; }
-      chipsEl.style.display = "flex";
+      RAW.forEach(r => {
+        const c = (r.category || "").trim();
+        if (c) c.split(",").map(s=>s.trim()).filter(Boolean).forEach(x=>set.add(x));
+      });
+      CATS = ["すべて", ...Array.from(set)];
+      if (!CATS.includes(state.cat)) state.cat = "すべて";
+    }
+
+    // 渲染 chips
+    function renderChips(){
+      $chips.innerHTML = "";
       CATS.forEach(cat => {
-        const div = document.createElement("div");
-        div.className = "chip";
-        div.textContent = cat;
-        div.addEventListener("click", () => {
-          if (activeCats.has(cat)) activeCats.delete(cat); else activeCats.add(cat);
-          div.classList.toggle("active");
-          applyFilters();
+        const a = document.createElement("button");
+        a.className = "chip" + (cat === state.cat ? " active":"");
+        a.textContent = cat;
+        a.addEventListener("click", () => {
+          state.cat = cat;
+          renderChips();
+          syncQuery();
+          applyFilter();
         });
-        chipsEl.appendChild(div);
+        $chips.appendChild(a);
       });
     }
 
-    function matchesKw(x, kw) {
-      if (!kw) return true;
-      const hay = `${x.name}\n${x.description}\n${x.link}`.toLowerCase();
-      return hay.includes(kw.toLowerCase());
+    // 同步地址栏（便于分享 / 刷新不丢条件）
+    function syncQuery(){
+      const params = new URLSearchParams();
+      if (state.q) params.set("q", state.q);
+      if (state.cat && state.cat !== "すべて") params.set("cat", state.cat);
+      const s = params.toString();
+      history.replaceState(null, "", s ? `?${s}` : location.pathname);
     }
 
-    function matchesCat(x) {
-      if (activeCats.size === 0) return true;
-      return activeCats.has((x.category || "").trim());
+    // 过滤 & 渲染结果
+    function applyFilter(){
+      const kw = state.q.toLowerCase();
+      const cat = state.cat;
+
+      const list = RAW.filter(r => {
+        // 关键词：命中 name/description
+        const name = (r.name || "").toLowerCase();
+        const desc = (r.description || "").toLowerCase();
+        const hitKw = !kw || name.includes(kw) || desc.includes(kw);
+
+        // 分类：命中 category（支持逗号分隔）
+        const cats = (r.category || "").split(",").map(s=>s.trim()).filter(Boolean);
+        const hitCat = (cat === "すべて") || cats.includes(cat);
+
+        return hitKw && hitCat;
+      });
+
+      $stats.textContent = `${list.length} 件ヒット（カテゴリ: ${cat}${state.q ? ` / キーワード: "${state.q}"`:""}）`;
+      renderCards(list);
     }
 
-    function distanceMeters(a, b) {
-      if (!a || !b) return Infinity;
-      const toRad = d => d * Math.PI / 180;
-      const R = 6371000;
-      const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
-      const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
-      const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
-      return 2 * R * Math.asin(Math.sqrt(h));
-    }
-
-    function applyFilters() {
-      const kw = kwEl.value.trim();
-      FILTERED = ALL.filter(x => matchesKw(x, kw) && matchesCat(x));
-
-      const sortBy = sortEl.value;
-      if (sortBy === "name") {
-        FILTERED.sort((a,b) => (a.name || "").localeCompare(b.name || "", "ja"));
-      } else if (sortBy === "distance" && userPos) {
-        FILTERED.sort((a,b) => {
-          const da = distanceMeters(userPos, {lat:a.lat||0, lng:a.lng||0});
-          const db = distanceMeters(userPos, {lat:b.lat||0, lng:b.lng||0});
-          return da - db;
-        });
-      }
-
-      renderResults();
-    }
-
-    function renderResults() {
-      resultsEl.innerHTML = "";
-      summaryEl.textContent = `該当 ${FILTERED.length} 件`;
-      if (FILTERED.length === 0) {
-        resultsEl.innerHTML = `<div class="card"><small>結果がありません。条件を変更してください。</small></div>`;
+    // 卡片渲染
+    function renderCards(list){
+      $results.innerHTML = "";
+      if (!list.length) {
+        $results.innerHTML = `<div class="muted" style="grid-column:1/-1;text-align:center;">該当する店舗は見つかりませんでした。</div>`;
         return;
       }
-      FILTERED.forEach(x => {
-        const dist = (userPos && x.lat && x.lng)
-          ? `・約 ${(distanceMeters(userPos,{lat:x.lat,lng:x.lng})/1000).toFixed(2)} km`
-          : "";
 
-        const url = x.link ? new URL(x.link, window.location.href) : null;
-        const host = url ? url.hostname.replace(/^www\./,'') : "";
+      list.forEach(r => {
+        const id = (r.id && r.id.trim()) ? r.id.trim() : (r.name || "").trim();
+        const img = (r.image && r.image.trim()) ? r.image.trim() : "";
+        const cat = (r.category || "").split(",").map(s=>s.trim()).filter(Boolean);
+        const desc = (r.description || "").trim();
 
-        const el = document.createElement("div");
-        el.className = "card shop";
-        el.innerHTML = `
-          <h3 style="margin-top:0">${x.name || "(無名)"} ${x.category ? `<span class="badge">${x.category}</span>` : ""}</h3>
-          ${x.image ? `<img src="${x.image}" alt="画像" class="info-img" />` : ""}
-          ${x.description ? `<p>${x.description}</p>` : ""}
-          <div class="meta muted">
-            ${x.lat && x.lng ? `📍 ${x.lat.toFixed(5)}, ${x.lng.toFixed(5)} ${dist}` : ""}
-            ${host ? `🔗 ${host}` : ""}
-          </div>
-          <div class="actions">
-            ${x.link ? `<a class="info-link" href="${x.link}" target="_blank">▶ 詳しく見る</a>` : ""}
-            <a class="btn" href="map.html?focus=${encodeURIComponent(x.id || x.name || "")}">🗺 地図で見る</a>
-            <a class="btn" href="shop.html?shop=${encodeURIComponent(x.id || x.name || "")}">🏷 店舗詳細</a>
-            ${x.lat && x.lng ? `<a class="btn" href="https://www.google.com/maps?q=${x.lat},${x.lng}" target="_blank">📍 Googleマップ</a>` : ""}
+        const card = document.createElement("article");
+        card.className = "card";
+        card.innerHTML = `
+          ${img ? `<img class="thumb" src="${img}" alt="サムネイル" onerror="this.style.display='none'">` : `<div class="thumb"></div>`}
+          <div class="card-body">
+            <h3 style="margin:0 0 6px 0;">${r.name || "(名称未設定)"}</h3>
+            <div>${cat.map(c=>`<span class="badge">${c}</span>`).join(" ")}</div>
+            ${desc ? `<p style="margin:8px 0 0 0;">${desc}</p>` : ""}
+
+            <div class="card-actions">
+              <a class="btn" href="shop.html?shop=${encodeURIComponent(id)}"><i class="fa-solid fa-tag"></i> 店舗詳細</a>
+              <a class="btn" href="map.html?focus=${encodeURIComponent(id)}"><i class="fa-solid fa-map-location-dot"></i> 地図で見る</a>
+              ${r.link ? `<a class="btn" href="${r.link}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> 公式/関連</a>` : ""}
+            </div>
           </div>
         `;
-        resultsEl.appendChild(el);
+        $results.appendChild(card);
       });
     }
 
-    kwEl.addEventListener("input", applyFilters);
-    sortEl.addEventListener("change", applyFilters);
-    clearBtn.addEventListener("click", () => {
-      kwEl.value = ""; activeCats.clear();
-      chipsEl.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
-      applyFilters();
-    });
-    locateBtn.addEventListener("click", () => {
-      if (!navigator.geolocation) return alert("位置情報が利用できません。");
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          userPos = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-          if (sortEl.value === "distance") applyFilters();
-          else alert("現在地を取得しました。「距離順」に切り替えると近い順で表示されます。");
-        },
-        err => alert("位置情報の取得に失敗しました: " + err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
-
-    // 顶部登录状态条（与其他页面一致）
-    (function () {
-      const email = localStorage.getItem("auth_email");
-      const role  = localStorage.getItem("auth_role");
-      if (email) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center";
-        bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8";
-        bar.style.color = "#333";
-        bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
-        document.body.prepend(bar);
-      }
-    })();
+    // 简易防抖
+    function debounce(fn, delay){
+      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args),delay); };
+    }
   </script>
 </body>
 </html>
