@@ -2,58 +2,32 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>マップ - 店舗情報</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    #map {
-      height: 500px;
-      width: 90%;
-      margin: 20px auto;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-    }
-    #searchBox {
-      width:80%;
-      max-width:400px;
-      margin:10px auto;
-      display:block;
-      padding:8px 10px;
-      border-radius:8px;
-      border:1px solid #999;
-      font-size:16px;
-    }
-    .cat-btn {
-      background:#e8f0fe;
-      border:1px solid #90caf9;
-      border-radius:999px;
-      padding:4px 10px;
-      margin:3px;
-      font-size:14px;
-      cursor:pointer;
-    }
-    .cat-btn.active {
-      background:#0a66c2;
-      color:#fff;
-    }
-    .info-img {
-      width: 100%;
-      max-width: 150px;
-      margin-top: 6px;
-      border-radius: 5px;
-    }
-    .info-link {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 4px 8px;
-      background-color: #0a66c2;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-size: 13px;
-    }
+    #map { height: 500px; width: 90%; margin: 20px auto; border: 1px solid #ccc; border-radius: 10px; }
+    #searchBox { width: 80%; max-width: 400px; margin: 10px auto; display: block; padding: 8px 10px; border-radius: 8px; border: 1px solid #999; font-size: 16px; }
+    .cat-btn { background:#e8f0fe; border:1px solid #90caf9; border-radius:999px; padding:4px 10px; margin:3px; font-size:14px; cursor:pointer; }
+    .cat-btn.active { background:#0a66c2; color:#fff; }
+    .info-img { width: 100%; max-width: 150px; margin-top: 6px; border-radius: 5px; }
+    .info-link { display:inline-block; margin-top:8px; padding:4px 8px; background:#0a66c2; color:#fff; text-decoration:none; border-radius:4px; font-size:13px; }
+
+    /* 下滑评论面板 */
+    #comment-box { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); transition: bottom 0.4s; padding: 1em; z-index: 999; }
+    #comment-box.active { bottom: 0; }
+    .store-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .close-btn { background:none; border:none; font-size:20px; cursor:pointer; }
+    #comments { max-height: 240px; overflow-y: auto; margin-top: 10px; }
+    .comment { border-top:1px solid #eee; background:#f8faff; margin-bottom:6px; padding:8px; border-radius:4px; }
+    .stars { color:#ffc107; font-size:16px; margin-left:4px; }
+    .star-rating { margin: 6px 0; }
+    .star-input { font-size:20px; color:#ccc; cursor:pointer; }
+    .star-input.selected { color:#ffc107; }
+    .btn-submit { background:#0a66c2; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    #loadMore { background:#eee; border:none; padding:6px 12px; margin-top:10px; border-radius:5px; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -65,6 +39,9 @@
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
+      <a href="login.html" class="btn">🔐 ログイン</a>
+      <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
   </header>
 
@@ -74,7 +51,7 @@
       <p>神戸・三宮周辺の便利なお店や施設を地図でご紹介します。</p>
       <input type="text" id="searchBox" placeholder="店名・キーワードで検索...">
 
-      <!-- ★ 新增分类筛选按钮 -->
+      <!-- 分类筛选（可按需增减按钮或改为动态生成） -->
       <div id="categoryFilters" style="text-align:center;margin:10px 0;">
         <button class="cat-btn active" data-cat="all">すべて</button>
         <button class="cat-btn" data-cat="生活用品">生活用品</button>
@@ -86,60 +63,178 @@
     <div id="map"></div>
   </main>
 
+  <!-- 评论弹层（保持你原先结构） -->
+  <div id="comment-box">
+    <div class="store-header">
+      <h2 id="shop-name">店名</h2>
+      <button id="close-btn" class="close-btn" title="閉じる">✖</button>
+    </div>
+    <div id="store-info" style="margin-bottom:8px;"></div>
+
+    <form id="comment-form">
+      <input type="text" id="username" placeholder="お名前（任意）"><br>
+      <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
+
+      <div id="rating-stars" class="star-rating">
+        <span class="star-input" data-value="1">★</span>
+        <span class="star-input" data-value="2">★</span>
+        <span class="star-input" data-value="3">★</span>
+        <span class="star-input" data-value="4">★</span>
+        <span class="star-input" data-value="5">★</span>
+      </div>
+      <button type="submit" class="btn-submit">送信</button>
+    </form>
+
+    <div class="comment-list">
+      <h4>レビュー一覧</h4>
+      <div id="comments"></div>
+      <button id="loadMore" style="display:none">もっと見る</button>
+    </div>
+  </div>
+
   <footer>
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g",
+      authDomain: "kobe-life-guide.firebaseapp.com",
+      projectId: "kobe-life-guide",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
+      messagingSenderId: "440390213094",
+      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const ROLE  = localStorage.getItem("auth_role") || "user";
+    const EMAIL = localStorage.getItem("auth_email") || null;
+    const UID   = localStorage.getItem("auth_uid") || null;
+    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
+
+    (function () {
+      if (EMAIL) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center";
+        bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8";
+        bar.style.color = "#333";
+        bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE || "user"}）`;
+        document.body.prepend(bar);
+      }
+      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+    })();
+
     let allMarkers = [];
+    let currentShopId = null;
+    let lastVisible = null;
+    let selectedRating = 0;
     let currentCategory = "all";
 
-    function initMap() {
-      const center = { lat: 34.6951, lng: 135.1955 }; // 三宮駅中心
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15,
-        center: center
+    function getQueryParam(name){
+      const p = new URLSearchParams(window.location.search);
+      return p.get(name);
+    }
+
+    function focusFromQuery() {
+      const target = getQueryParam("focus");
+      if (!target) return;
+      const m = allMarkers.find(mk => {
+        const id = (mk._shopId || "").trim();
+        const nm = (mk.name || "").trim();
+        return id === target || nm === target;
       });
+      if (m) {
+        const map = m.getMap();
+        map.setCenter(m.getPosition());
+        map.setZoom(17);
+        google.maps.event.trigger(m, "click");
+      }
+    }
 
-      const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+    function initMap() {
+      const center = { lat: 34.6951, lng: 135.1955 };
+      const map = new google.maps.Map(document.getElementById("map"), { zoom: 15, center });
 
-      Papa.parse(csvUrl, {
+      Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv", {
         download: true,
         header: true,
-        complete: function(results) {
-          allMarkers = results.data.map(place => {
+        complete: ({ data }) => {
+          allMarkers = data.map(place => {
             if (!place.lat || !place.lng) return null;
 
             const marker = new google.maps.Marker({
               position: { lat: parseFloat(place.lat), lng: parseFloat(place.lng) },
-              map: map
+              map
             });
 
-            marker.name = place.name;
-            marker.description = place.description;
-            marker.category = place.category || "";
-            marker.id = place.id || place.name;
+            marker._shopId = (place.id && place.id.trim()) ? place.id.trim() : (place.name || "");
+            marker.name = place.name || "";
+            marker.description = place.description || "";
+            marker.category = (place.category || ""); // ★ 用于分类过滤
 
-            const contentParts = [`<strong>${place.name}</strong>`];
-            if (place.description) contentParts.push(`<br>${place.description}`);
-            if (place.image) contentParts.push(`<br><img class='info-img' src='${place.image}' alt='画像'>`);
-            contentParts.push(`<br><a class='info-link' href='shop.html?shop=${encodeURIComponent(marker.id)}'>店舗詳細を見る</a>`);
+            const infoHtml = [
+              `<strong>${place.name || ""}</strong>`,
+              place.description ? `<br>${place.description}` : "",
+              place.image ? `<br><img class="info-img" src="${place.image}" alt="画像">` : "",
+              place.link ? `<br><a class="info-link" href="${place.link}" target="_blank">▶ 詳しく見る</a>` : "",
+              `<br><a class="info-link" href="shop.html?shop=${encodeURIComponent(marker._shopId)}">🏷 店舗詳細</a>`
+            ].join("");
 
-            const infoWindow = new google.maps.InfoWindow({
-              content: contentParts.join('')
-            });
+            const infoWindow = new google.maps.InfoWindow({ content: infoHtml });
+            marker.infoWindow = infoWindow; // ★ 供过滤时关闭用
 
             marker.addListener("click", () => {
               infoWindow.open(map, marker);
+              currentShopId = marker._shopId;
+
+              document.getElementById("shop-name").textContent = place.name || "店名";
+              document.getElementById("store-info").innerHTML = `
+                ${place.description ? `<p>${place.description}</p>` : ""}
+                ${place.link ? `<p><a class="info-link" href="${place.link}" target="_blank">▶ 詳しく見る</a></p>` : ""}
+                ${place.image ? `<img class="info-img" src="${place.image}" alt="画像">` : ""}
+                <p style="margin-top:6px">
+                  <a class="info-link" href="shop.html?shop=${encodeURIComponent(marker._shopId)}">🏷 店舗詳細ページへ</a>
+                </p>
+              `;
+
+              // 昵称只读提示
+              const nameInput = document.getElementById("username");
+              if (PROFILE_NAME && nameInput) {
+                nameInput.value = PROFILE_NAME;
+                nameInput.readOnly = true;
+                nameInput.style.opacity = "0.6";
+                nameInput.title = "プロフィールの表示名が使用されます";
+                const after = nameInput.nextElementSibling;
+                if (!after || !after.classList || !after.classList.contains("muted")) {
+                  const tip = document.createElement("div");
+                  tip.className = "muted";
+                  tip.style.marginTop = "6px";
+                  tip.textContent = `表示名として「${PROFILE_NAME}」を使用します。`;
+                  nameInput.insertAdjacentElement("afterend", tip);
+                }
+              }
+
+              document.getElementById("comment-box").classList.add("active");
+              document.getElementById("comments").innerHTML = "<small>読み込み中...</small>";
+              loadComments(true);
             });
 
             return marker;
-          }).filter(m => m !== null);
+          }).filter(Boolean);
+
+          focusFromQuery();
         }
       });
 
-      // 搜索框事件
+      // 关键词过滤
       document.getElementById("searchBox").addEventListener("input", filterMarkers);
 
       // 分类按钮事件
@@ -152,19 +247,118 @@
         });
       });
 
+      // 地图空白处点击 → 收起评论面板
+      map.addListener("click", () => {
+        document.getElementById("comment-box").classList.remove("active");
+      });
+
       function filterMarkers() {
         const keyword = document.getElementById("searchBox").value.toLowerCase();
         allMarkers.forEach(marker => {
           const matchKeyword = marker.name.toLowerCase().includes(keyword) ||
-              (marker.description || '').toLowerCase().includes(keyword);
+                               (marker.description || '').toLowerCase().includes(keyword);
           const matchCat = currentCategory === "all" ||
-              (marker.category && marker.category.includes(currentCategory));
+                           (marker.category && marker.category.includes(currentCategory));
           const visible = matchKeyword && matchCat;
           marker.setVisible(visible);
           if (!visible && marker.infoWindow) marker.infoWindow.close();
         });
       }
     }
+
+    // 关闭弹层
+    document.getElementById("close-btn").onclick = () => {
+      document.getElementById("comment-box").classList.remove("active");
+    };
+
+    // 加载评论（分页）
+    function loadComments(reset = false) {
+      if (!currentShopId) return;
+
+      const listEl = document.getElementById("comments");
+      const moreBtn = document.getElementById("loadMore");
+      if (reset) { listEl.innerHTML = ""; lastVisible = null; }
+
+      let ref = db.collection("shops").doc(currentShopId)
+                  .collection("comments")
+                  .orderBy("time", "desc")
+                  .limit(5);
+      if (lastVisible) ref = ref.startAfter(lastVisible);
+
+      ref.get().then(snapshot => {
+        if (snapshot.empty) {
+          moreBtn.style.display = "none";
+          if (reset) listEl.innerHTML = "<small>コメントがまだありません。</small>";
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const t = d.time?.toDate ? d.time.toDate() : new Date();
+          const timeStr = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+          const stars = "★".repeat(d.rating || 0) + "☆".repeat(5 - (d.rating || 0));
+
+          const div = document.createElement("div");
+          div.className = "comment";
+          div.innerHTML = `
+            <strong>${d.name || "匿名"}</strong>
+            <span class="stars">${stars}</span><br/>
+            ${d.text ? `<div>${d.text}</div>` : ""}
+            <small>${timeStr}</small>
+          `;
+          listEl.appendChild(div);
+        });
+
+        lastVisible = snapshot.docs[snapshot.docs.length - 1];
+        moreBtn.style.display = snapshot.size < 5 ? "none" : "block";
+      }).catch(err => {
+        console.error("コメント読み込み失敗:", err);
+      });
+    }
+
+    document.getElementById("loadMore").onclick = () => loadComments(false);
+
+    // 星级选择
+    document.querySelectorAll(".star-input").forEach(star => {
+      star.addEventListener("click", () => {
+        selectedRating = parseInt(star.dataset.value, 10);
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        for (let i = 1; i <= selectedRating; i++) {
+          const node = document.querySelector(`.star-input[data-value='${i}']`);
+          if (node) node.classList.add("selected");
+        }
+      });
+    });
+
+    // 发送评论
+    document.getElementById("comment-form").addEventListener("submit", e => {
+      e.preventDefault();
+      if (!currentShopId) return alert("店舗が選択されていません。");
+
+      const typed = (document.getElementById("username").value || "").trim();
+      const name  = (PROFILE_NAME && PROFILE_NAME.trim()) ? PROFILE_NAME.trim() : (typed || "匿名");
+      const text  = (document.getElementById("usercomment").value || "").trim();
+      if (!text) return alert("コメントを入力してください。");
+
+      db.collection("shops").doc(currentShopId).collection("comments").add({
+        uid: UID || null,
+        email: EMAIL || null,
+        name,
+        text,
+        rating: selectedRating || 0,
+        time: new Date()
+      }).then(() => {
+        document.getElementById("usercomment").value = "";
+        document.getElementById("username").value = PROFILE_NAME || "";
+        selectedRating = 0;
+        document.querySelectorAll(".star-input").forEach(s => s.classList.remove("selected"));
+        alert("コメントが送信されました。");
+        loadComments(true);
+      }).catch(err => {
+        console.error("送信失敗:", err);
+        alert("送信に失敗しました。ログイン状態やネットワークを確認してください。");
+      });
+    });
   </script>
 
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
