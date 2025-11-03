@@ -2,30 +2,26 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>店舗詳細 - 神戸外国人生活ガイド</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    .shop-hero{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:start}
-    .shop-hero img{width:100%;border-radius:10px;object-fit:cover;max-height:180px}
-    .shop-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-    .badge{padding:2px 8px;border-radius:999px;background:#eef;font-size:12px}
-    .muted{color:#64748b;font-size:12px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .section{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;margin-top:14px}
-    .stars{color:#ffc107}
-    .star-input{font-size:20px;color:#ccc;cursor:pointer}
-    .star-input.selected{color:#ffc107}
-    .comment{border-top:1px solid #eee;background:#f8faff;margin-bottom:6px;padding:8px;border-radius:4px}
-    .btn-submit{background:#0a66c2;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-    @media (max-width:640px){.shop-hero{grid-template-columns:1fr}}
+    .shop-container {max-width:900px;margin:20px auto;padding:0 1em;}
+    .shop-header {display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;}
+    .shop-header img {width:280px;max-width:100%;border-radius:10px;object-fit:cover;}
+    .shop-info {flex:1;}
+    .shop-info h2{margin:0 0 10px;}
+    .shop-field{margin:4px 0;font-size:15px;}
+    .shop-field i{width:20px;color:#0a66c2;}
+    .badge{display:inline-block;background:#eef;padding:2px 8px;border-radius:999px;font-size:12px;margin-right:6px;}
+    #comment-box{margin-top:30px;}
   </style>
 </head>
 <body>
   <header>
-    <h1>🏷 店舗詳細</h1>
+    <h1>🏪 店舗詳細</h1>
     <nav class="navbar">
       <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
@@ -38,38 +34,14 @@
     </nav>
   </header>
 
-  <main>
-    <section class="intro">
-      <h2 id="shopTitle">読み込み中…</h2>
-      <p class="muted" id="subtitle">URLパラメータ ?shop= に店IDを指定してください。</p>
-    </section>
+  <main class="shop-container">
+    <div id="shop-detail"><p>読み込み中…</p></div>
 
-    <section class="section" id="heroSection" style="display:none;">
-      <div class="shop-hero">
-        <img id="shopImage" alt="画像" src="" onerror="this.style.display='none'"/>
-        <div>
-          <div id="shopDesc"></div>
-          <div class="shop-meta" id="shopMeta"></div>
-          <div class="actions" id="shopActions"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="detailSection" style="display:none;">
-      <h3>📌 詳細情報</h3>
-      <div id="detailContent"></div>
-    </section>
-
-    <section class="section" id="ratingSummary" style="display:none;">
-      <h3>⭐ 評価の概要</h3>
-      <div id="avgRating">集計中…</div>
-    </section>
-
-    <section class="section" id="commentWrite" style="display:none;">
-      <h3>💬 コメントを書く</h3>
-      <form id="commentForm">
-        <input type="text" id="username" placeholder="お名前（任意）" /><br/>
-        <textarea id="usercomment" rows="3" placeholder="コメントを入力"></textarea><br/>
+    <div id="comment-box">
+      <h3>💬 コメント</h3>
+      <form id="comment-form">
+        <input type="text" id="username" placeholder="お名前（任意）"><br>
+        <textarea id="usercomment" placeholder="コメントを入力"></textarea><br>
         <div id="rating-stars">
           <span class="star-input" data-value="1">★</span>
           <span class="star-input" data-value="2">★</span>
@@ -77,49 +49,21 @@
           <span class="star-input" data-value="4">★</span>
           <span class="star-input" data-value="5">★</span>
         </div>
-        <button type="submit" class="btn-submit">送信</button>
+        <button type="submit">送信</button>
       </form>
-    </section>
-
-    <section class="section" id="commentListSec" style="display:none;">
-      <h3>🗂 コメント一覧</h3>
       <div id="comments"></div>
-      <button id="loadMore" class="btn-submit" style="display:none;margin-top:6px;">もっと見る</button>
-    </section>
-
-    <section class="section" id="notFound" style="display:none;">
-      <p>該当店舗が見つかりません。</p>
-      <a class="btn" href="search.html">🔎 検索へ戻る</a>
-    </section>
+      <button id="loadMore" style="display:none">もっと見る</button>
+    </div>
   </main>
 
-  <footer><p>&copy; 2025 神戸外国人支援プロジェクト</p></footer>
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
   <script>
-    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
-    const ROLE  = localStorage.getItem("auth_role") || "user";
-    const EMAIL = localStorage.getItem("auth_email") || null;
-    const UID   = localStorage.getItem("auth_uid") || null;
-
-    (function () {
-      if (EMAIL) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center";
-        bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8";
-        bar.style.color = "#333";
-        bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE}）`;
-        document.body.prepend(bar);
-      }
-      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-    })();
-
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -130,138 +74,109 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+  </script>
 
-    const CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
-    const p = new URLSearchParams(location.search);
-    const key = (p.get("shop") || "").trim();
-    let shopId=null,lastVisible=null,selectedRating=0;
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script>
+    const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+    const params=new URLSearchParams(location.search);
+    const shopId=params.get("shop");
+    let shopData=null,lastVisible=null,selectedRating=0;
 
-    if(!key){
-      document.getElementById("notFound").style.display="block";
+    if(!shopId){
+      document.getElementById("shop-detail").innerHTML="<p style='color:red;'>URLパラメータ ?shop= に店IDを指定してください。</p>";
     }else{
-      Papa.parse(CSV,{
+      Papa.parse(CSV_URL,{
         download:true,header:true,
         complete:({data})=>{
-          let row=data.find(r=>(r.id||"").trim()===key)||data.find(r=>!row&&(r.name||"").trim()===key);
-          if(!row){document.getElementById("notFound").style.display="block";return;}
-          shopId=(row.id||row.name).trim();
-          renderBase(row);
-          document.getElementById("commentWrite").style.display="block";
-          document.getElementById("commentListSec").style.display="block";
+          shopData=data.find(r=>(r.id||r.name)===shopId||r.name===shopId);
+          if(!shopData){
+            document.getElementById("shop-detail").innerHTML="<p>該当する店舗情報が見つかりません。</p>";return;
+          }
+          renderShop(shopData);
           loadComments(true);
-          calcAvgRating();
         }
       });
     }
 
-    function renderBase(r){
-      document.getElementById("shopTitle").textContent=r.name||"店名";
-      document.getElementById("heroSection").style.display="block";
-      const img=document.getElementById("shopImage");
-      if(r.image) img.src=r.image;
-      document.getElementById("shopDesc").innerHTML=r.description?`<p>${r.description}</p>`:"";
-      const meta=document.getElementById("shopMeta");
-      meta.innerHTML="";
-      const cat=(r.category||"").trim();
-      if(cat){
-        const s=document.createElement("span");
-        s.className="badge";s.textContent=cat;meta.append(s);
-      }
-      const actions=document.getElementById("shopActions");
-      actions.innerHTML=`
-        <a class="btn" href="map.html?focus=${encodeURIComponent(shopId)}">🗺 地図で見る</a>
-        <a class="btn" href="search.html">🔎 検索に戻る</a>
-      `;
+    function renderShop(d){
+      const c=(x)=>x&&x.trim()?x.trim():"";
+      const cats=(c(d.category)||"").split(",").map(s=>s.trim()).filter(Boolean);
+      document.title=d.name+" - 店舗詳細";
+      document.getElementById("shop-detail").innerHTML=`
+        <div class="shop-header">
+          ${c(d.image)?`<img src="${d.image}" alt="${d.name}">`:""}
+          <div class="shop-info">
+            <h2>${d.name}</h2>
+            ${cats.length?cats.map(x=>`<span class="badge">${x}</span>`).join(" "):""}
+            ${c(d.description)?`<p>${d.description}</p>`:""}
+            ${c(d.address)?`<div class="shop-field"><i class="fa-solid fa-location-dot"></i>${d.address}</div>`:""}
+            ${c(d.hours)?`<div class="shop-field"><i class="fa-regular fa-clock"></i>${d.hours}</div>`:""}
+            ${c(d.phone)?`<div class="shop-field"><i class="fa-solid fa-phone"></i>${d.phone}</div>`:""}
+            ${c(d.website)?`<div class="shop-field"><i class="fa-solid fa-link"></i><a href="${d.website}" target="_blank" rel="noopener">${d.website}</a></div>`:""}
+            <div style="margin-top:10px;">
+              <a class="btn" href="map.html?focus=${encodeURIComponent(d.id||d.name)}">🗺 地図で見る</a>
+            </div>
+          </div>
+        </div>`;
     }
 
     function loadComments(reset=false){
-      if(!shopId)return;
-      const list=document.getElementById("comments");
-      const more=document.getElementById("loadMore");
-      if(reset){list.innerHTML="";lastVisible=null;}
-      let ref=db.collection("shops").doc(shopId).collection("comments").orderBy("time","desc").limit(5);
-      if(lastVisible)ref=ref.startAfter(lastVisible);
-      ref.get().then(snap=>{
+      const ref=db.collection("shops").doc(shopId).collection("comments").orderBy("time","desc").limit(5);
+      let q=reset?ref:ref.startAfter(lastVisible);
+      q.get().then(snap=>{
+        const container=document.getElementById("comments");
+        if(reset)container.innerHTML="";
         if(snap.empty){
-          more.style.display="none";
-          if(reset) list.innerHTML="<small>コメントがありません</small>";
-          return;
+          if(reset)container.innerHTML="<p class='muted'>コメントがまだありません。</p>";
+          document.getElementById("loadMore").style.display="none";return;
         }
         snap.forEach(doc=>{
-          const d=doc.data();
-          const time=d.time?.toDate?d.time.toDate():new Date();
+          const d=doc.data();const t=d.time?.toDate?.()||new Date();
+          const ts=`${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,"0")}`;
           const stars="★".repeat(d.rating||0)+"☆".repeat(5-(d.rating||0));
-          const row=document.createElement("div");
-          row.className="comment";
-          row.innerHTML=`
-            <strong>${d.name||"匿名"}</strong> <span class="stars">${stars}</span><br/>
-            ${d.text?`<div>${d.text}</div>`:""}
-            <small class="muted">${time.getFullYear()}/${time.getMonth()+1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}</small>
-          `;
-          list.append(row);
+          const div=document.createElement("div");
+          div.className="comment";
+          div.innerHTML=`<strong>${d.name||"匿名"}</strong> <small>（${ts}）</small><br><div class='stars'>${stars}</div>${d.text}`;
+          container.appendChild(div);
         });
         lastVisible=snap.docs[snap.docs.length-1];
-        more.style.display=snap.size<5?"none":"block";
+        document.getElementById("loadMore").style.display=snap.size<5?"none":"block";
       });
     }
+
     document.getElementById("loadMore").onclick=()=>loadComments();
 
-    // ★★★ 昵称修复：只读 + 提示（不隐藏表单）
-    if (PROFILE_NAME) {
-      const nameInput = document.getElementById("username");
-      if (nameInput) {
-        nameInput.value = PROFILE_NAME;
-        nameInput.readOnly = true;
-        nameInput.style.opacity = "0.6";
-        nameInput.title = "プロフィールの表示名が使用されます";
-        const tip = document.createElement("div");
-        tip.className = "muted";
-        tip.style.marginTop = "6px";
-        tip.textContent = `表示名として「${PROFILE_NAME}」を使用します。`;
-        nameInput.insertAdjacentElement("afterend", tip);
-      }
-    }
-
-    document.querySelectorAll(".star-input").forEach(s=>{
-      s.addEventListener("click",()=>{
-        selectedRating=parseInt(s.dataset.value);
-        document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
-        for(let i=1;i<=selectedRating;i++)
+    document.querySelectorAll(".star-input").forEach(star=>{
+      star.addEventListener("click",()=>{
+        selectedRating=parseInt(star.dataset.value);
+        document.querySelectorAll(".star-input").forEach(s=>s.classList.remove("selected"));
+        for(let i=1;i<=selectedRating;i++){
           document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
+        }
       });
     });
 
-    document.getElementById("commentForm").addEventListener("submit",e=>{
+    document.getElementById("comment-form").addEventListener("submit",e=>{
       e.preventDefault();
-      const typed=(document.getElementById("username").value||"").trim();
-      const name=(PROFILE_NAME&&PROFILE_NAME.trim())?PROFILE_NAME.trim():(typed||"匿名");
-      const text=(document.getElementById("usercomment").value||"").trim();
+      const name=document.getElementById("username").value.trim();
+      const text=document.getElementById("usercomment").value.trim();
       if(!text)return alert("コメントを入力してください。");
       db.collection("shops").doc(shopId).collection("comments").add({
-        name,text,rating:selectedRating||0,
-        uid:UID||null,email:EMAIL||null,
+        name:name||"匿名",
+        text,
+        rating:selectedRating,
         time:new Date()
       }).then(()=>{
         document.getElementById("usercomment").value="";
+        document.getElementById("username").value="";
         selectedRating=0;
-        document.querySelectorAll(".star-input").forEach(x=>x.classList.remove("selected"));
-        alert("送信しました！");
+        document.querySelectorAll(".star-input").forEach(s=>s.classList.remove("selected"));
+        alert("コメントが送信されました。");
         loadComments(true);
-        calcAvgRating();
       });
     });
-
-    function calcAvgRating(){
-      if(!shopId)return;
-      db.collection("shops").doc(shopId).collection("comments").get().then(snap=>{
-        if(snap.empty)return;
-        let sum=0;
-        snap.forEach(doc=>sum+=(doc.data().rating||0));
-        const avg=(sum/snap.size).toFixed(2);
-        document.getElementById("ratingSummary").style.display="block";
-        document.getElementById("avgRating").innerHTML=`平均評価: <strong>${avg}</strong> / 5（${snap.size}件）`;
-      });
-    }
   </script>
 </body>
 </html>
