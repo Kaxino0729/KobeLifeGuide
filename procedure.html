@@ -4,39 +4,91 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>手続きガイド（Wiki風掲示板）</title>
+  <title>手続きガイド（Wiki風・ツリー）</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <!-- EasyMDE（Markdownエディタ） -->
+  <!-- Markdown editor/viewer libs -->
   <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
   <style>
-    .toolbar {display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .toolbar .search {flex:1;min-width:220px}
-    .toolbar input,.toolbar select {padding:8px;border:1px solid #ccc;border-radius:8px;width:100%}
-    .toolbar .btn {padding:8px 12px;border-radius:8px;background:#0a66c2;color:#fff;text-decoration:none;border:none;cursor:pointer}
-    .guide-list {max-width:980px;margin:12px auto}
-    .guide-card {background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;margin:10px 0}
-    .guide-card h3{margin:0 0 6px 0}
-    .meta {color:#64748b;font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
-    .badge {background:#eef;padding:2px 8px;border-radius:999px;font-size:12px}
-    .tag {background:#f0f9ff;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px}
-    .actions a,.actions button{margin-left:8px}
-    .muted {color:#64748b}
-    .viewer {background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px;max-width:980px;margin:16px auto}
-    .viewer h2{margin-top:0}
-    .hidden{display:none}
+    /* ===== Layout ===== */
+    body { margin:0; }
+    header { padding:12px 16px; }
+    .layout {
+      display:grid;
+      grid-template-columns: 280px 1fr;
+      gap:0;
+      min-height: calc(100vh - 120px);
+    }
+    @media (max-width: 900px){
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { order:2; }
+      .content { order:1; }
+    }
+    .sidebar {
+      border-right:1px solid #e6e6e6;
+      padding:12px 10px;
+      background:#fafafa;
+    }
+    .content {
+      padding:14px 16px;
+      background:#fff;
+    }
 
-    /* Modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:1000}
-    .modal{background:#fff;max-width:960px;width:92%;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);}
-    .modal header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee}
-    .modal .body{padding:12px 14px}
-    .modal .row{display:grid;grid-template-columns:120px 1fr;gap:10px;margin:8px 0}
-    .modal input,.modal select,.modal textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px}
-    .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:10px 14px;border-top:1px solid #eee}
-    .danger{background:#dc2626}
-    .btn-secondary{background:#e5e7eb;color:#111}
-    @media (max-width:640px){.modal .row{grid-template-columns:1fr}}
+    /* ===== Toolbar (top of content) ===== */
+    .toolbar {
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;
+    }
+    .toolbar input, .toolbar select {
+      padding:8px; border:1px solid #ccc; border-radius:8px;
+    }
+    .toolbar .search { flex:1; min-width:220px; }
+    .btn { padding:8px 12px; border-radius:8px; background:#0a66c2; color:#fff; text-decoration:none; border:none; cursor:pointer; }
+    .btn-secondary { background:#e5e7eb; color:#111; }
+
+    /* ===== Tree ===== */
+    .tree-search { margin-bottom:10px; }
+    .tree-search input { width:100%; padding:8px; border:1px solid #ccc; border-radius:8px; }
+    .tree { list-style:none; margin:0; padding-left:0; }
+    .tree .cat {
+      margin:6px 0; border:1px solid #e6e6e6; background:#fff; border-radius:8px;
+    }
+    .cat-head {
+      display:flex; align-items:center; gap:6px; padding:8px 10px; cursor:pointer; user-select:none;
+    }
+    .cat-head .caret {
+      transition: transform .15s;
+    }
+    .cat.collapsed .caret { transform: rotate(-90deg); }
+    .cat-body { padding:4px 4px 8px 28px; display:block; }
+    .cat.collapsed .cat-body { display:none; }
+    .doc {
+      padding:6px 8px; margin:4px 6px; border-radius:6px; cursor:pointer; border:1px solid transparent;
+    }
+    .doc:hover { background:#f3f6ff; border-color:#d6e4ff; }
+    .doc.active { background:#e8f0fe; border-color:#90caf9; }
+    .muted { color:#64748b; font-size:12px; }
+    .badge { background:#eef; padding:2px 8px; border-radius:999px; font-size:12px; }
+    .tag { background:#f0f9ff; color:#0369a1; padding:2px 8px; border-radius:999px; font-size:12px; margin-left:4px; }
+
+    /* ===== Viewer ===== */
+    .viewer {
+      background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:16px;
+    }
+    .viewer h2 { margin-top:0; }
+    .meta { color:#64748b; font-size:12px; display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+
+    /* ===== Modal editor ===== */
+    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:1000}
+    .modal{ background:#fff; max-width:960px; width:92%; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .modal header{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #eee }
+    .modal .body{ padding:12px 14px }
+    .modal .row{ display:grid; grid-template-columns:120px 1fr; gap:10px; margin:8px 0 }
+    .modal input,.modal select,.modal textarea{ width:100%; padding:8px; border:1px solid #ccc; border-radius:8px }
+    .modal footer{ display:flex; gap:10px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #eee }
+    .danger{ background:#dc2626; color:#fff; }
+    @media (max-width:640px){ .modal .row{ grid-template-columns:1fr } }
+
+    .hidden{ display:none; }
   </style>
 </head>
 <body>
@@ -54,18 +106,22 @@
     </nav>
   </header>
 
-  <main class="guide-list">
-    <section class="intro">
-      <p class="muted">在日留学生のための実用ガイド。SIM・住まい・銀行・市役所手続きなどをカテゴリ別にまとめています。</p>
-    </section>
-
-    <!-- ツールバー（検索/カテゴリ/タグ/新規） -->
-    <div class="toolbar">
-      <div class="search" title="タイトル・本文・タグから検索">
-        <input id="q" type="search" placeholder="🔎 キーワード検索（例：SIM / 在留カード / 住民票）">
+  <div class="layout">
+    <!-- ===== Left: Tree ===== -->
+    <aside class="sidebar">
+      <div class="tree-search">
+        <input id="treeQ" type="search" placeholder="🔎 タイトル・タグで検索">
       </div>
-      <div style="width:180px">
-        <select id="cat">
+      <ul id="tree" class="tree"></ul>
+    </aside>
+
+    <!-- ===== Right: Content ===== -->
+    <section class="content">
+      <div class="toolbar">
+        <div class="search">
+          <input id="q" type="search" placeholder="🔎 全文検索（本文も対象）">
+        </div>
+        <select id="catSel">
           <option value="">すべてのカテゴリ</option>
           <option>SIM・通信</option>
           <option>住まい・賃貸</option>
@@ -75,29 +131,29 @@
           <option>仕事・アルバイト</option>
           <option>その他</option>
         </select>
+        <input id="tag" type="text" placeholder="タグ（カンマ区切り可）">
+        <button id="newBtn" class="btn admin-only">＋ 新規作成</button>
       </div>
-      <div style="width:200px">
-        <input id="tag" type="text" placeholder="タグ（例：未成年, 保険, マイナンバー）">
-      </div>
-      <button id="newBtn" class="btn admin-only" title="新しいガイドを作成">＋ 新規作成</button>
-    </div>
 
-    <!-- ガイド一覧 -->
-    <div id="list"></div>
+      <article id="viewer" class="viewer hidden">
+        <h2 id="vTitle">タイトル</h2>
+        <div class="meta" id="vMeta"></div>
+        <div id="vBody" style="margin-top:12px"></div>
+        <div id="vOps" class="hidden" style="margin-top:10px;">
+          <button id="editBtn" class="btn btn-secondary admin-only">編集</button>
+          <button id="delBtn" class="btn danger admin-only">削除</button>
+        </div>
+      </article>
 
-    <!-- 詳細ビュー（クリックで展開） -->
-    <article id="viewer" class="viewer hidden">
-      <h2 id="vTitle">タイトル</h2>
-      <div class="meta" id="vMeta"></div>
-      <div id="vBody" style="margin-top:12px"></div>
-    </article>
-  </main>
+      <p id="hint" class="muted">左側のカテゴリからガイドを選択してください。</p>
+    </section>
+  </div>
 
   <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+    <p style="padding:10px 16px;">&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-  <!-- Modal: 編集/新規 -->
+  <!-- ===== Modal: editor ===== -->
   <div class="modal-backdrop" id="modalWrap">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <header>
@@ -138,20 +194,19 @@
         </div>
       </div>
       <footer>
-        <button id="delBtn" class="btn danger admin-only">削除</button>
         <button id="saveBtn" class="btn">保存</button>
       </footer>
     </div>
   </div>
 
-  <!-- Firebase & libs -->
+  <!-- ===== Firebase & libs ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <script>
-    /* ====== 認証状態（簡易ヘッダバー & 権限UI） ====== */
+    /* ==== Auth banner & role gating ==== */
     const ROLE  = localStorage.getItem("auth_role") || "user";
     const EMAIL = localStorage.getItem("auth_email") || null;
     const UID   = localStorage.getItem("auth_uid") || null;
@@ -169,7 +224,7 @@
       if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
     })();
 
-    /* ====== Firebase 初期化 ====== */
+    /* ==== Firebase ==== */
     const firebaseConfig = {
       apiKey: "AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -181,22 +236,24 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ====== UI 参照 ====== */
+    /* ==== DOM refs ==== */
+    const $tree = document.getElementById("tree");
+    const $treeQ = document.getElementById("treeQ");
     const $q = document.getElementById("q");
-    const $cat = document.getElementById("cat");
+    const $catSel = document.getElementById("catSel");
     const $tag = document.getElementById("tag");
-    const $list = document.getElementById("list");
     const $viewer = document.getElementById("viewer");
     const $vTitle = document.getElementById("vTitle");
     const $vMeta = document.getElementById("vMeta");
     const $vBody = document.getElementById("vBody");
+    const $vOps = document.getElementById("vOps");
+    const $hint = document.getElementById("hint");
 
     const $modalWrap = document.getElementById("modalWrap");
     const $modalTitle = document.getElementById("modalTitle");
     const $closeModal = document.getElementById("closeModal");
     const $newBtn = document.getElementById("newBtn");
     const $saveBtn = document.getElementById("saveBtn");
-    const $delBtn = document.getElementById("delBtn");
 
     const $fTitle = document.getElementById("fTitle");
     const $fCat = document.getElementById("fCat");
@@ -205,169 +262,177 @@
     const $fPublished = document.getElementById("fPublished");
 
     let editor = null;
-    let editingId = null; // doc id
-    let cache = []; // loaded guides (for client filter)
+    let guides = [];     // 原始数据
+    let filtered = [];   // 过滤后用于构建树的数据
+    let activeId = null; // 当前打开的文档
 
-    /* ====== エディタ初期化 ====== */
-    function ensureEditor() {
+    function ensureEditor(){
       if (!editor) {
         editor = new EasyMDE({
           element: $fBody,
           spellChecker: false,
-          minHeight: "200px",
+          minHeight: "220px",
           renderingConfig: { singleLineBreaks: false },
           autofocus: false
         });
       }
     }
 
-    /* ====== モーダル開閉 ====== */
-    function openModal(title = "ガイド編集") {
+    // Modal open/close
+    function openModal(title="ガイド編集", doc=null){
+      if (ROLE !== "admin") return alert("権限がありません。");
+      ensureEditor();
       $modalTitle.textContent = title;
       $modalWrap.style.display = "flex";
-      ensureEditor();
+      if (doc){
+        $fTitle.value = doc.title || "";
+        $fCat.value = doc.category || "その他";
+        $fTags.value = (doc.tags||[]).join(", ");
+        editor.value(doc.body || "");
+        $fPublished.value = String(!!doc.published);
+      } else {
+        $fTitle.value = "";
+        $fCat.value = "SIM・通信";
+        $fTags.value = "";
+        editor.value("");
+        $fPublished.value = "true";
+      }
     }
-    function closeModal() {
+    function closeModal(){
       $modalWrap.style.display = "none";
-      editingId = null;
-      if (editor) editor.value("");
-      $fTitle.value = "";
-      $fCat.value = "SIM・通信";
-      $fTags.value = "";
-      $fPublished.value = "true";
     }
     $closeModal.onclick = closeModal;
 
-    /* ====== データモデル ======
-      guides/{docId}:
-        title: string
-        category: string
-        tags: array<string>
-        body: string (markdown)
-        published: boolean
-        updatedAt: timestamp
-        author: { uid, email }
-    ================================= */
-
-    /* ====== 一覧取得 & レンダリング ====== */
-    async function loadGuides() {
-      const snap = await db.collection("guides")
-        .orderBy("updatedAt","desc")
-        .limit(100)
-        .get();
-      cache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderList();
-    }
-
-    function renderList() {
-      const q = ($q.value || "").toLowerCase().trim();
-      const cat = ($cat.value || "").trim();
-      const tag = ($tag.value || "").toLowerCase().trim();
-
-      const filtered = cache.filter(g => {
-        if (!g.published && ROLE !== "admin") return false;
-        const hitQ = !q || (g.title||"").toLowerCase().includes(q)
-                      || (g.body||"").toLowerCase().includes(q)
-                      || (g.tags||[]).join(",").toLowerCase().includes(q);
-        const hitCat = !cat || (g.category === cat);
-        const hitTag = !tag || (g.tags||[]).some(t => (t||"").toLowerCase().includes(tag));
-        return hitQ && hitCat && hitTag;
-      });
-
-      $list.innerHTML = filtered.map(g => {
-        const date = g.updatedAt?.toDate ? g.updatedAt.toDate() : (g.updatedAt || new Date());
-        const dstr = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
-        const tags = (g.tags||[]).map(t => `<span class="tag">${t}</span>`).join(" ");
-        const isDraft = g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`;
-        return `
-          <div class="guide-card" data-id="${g.id}">
-            <h3 style="margin:0">
-              <a href="javascript:void(0)" class="open">${g.title||"(無題)"}</a>
-            </h3>
-            <div class="meta">
-              <span class="badge">${g.category || "その他"}</span>
-              ${isDraft}
-              ${tags}
-              <span class="muted">更新日：${dstr}</span>
-            </div>
-            <div class="actions" style="margin-top:6px;">
-              <a class="btn btn-secondary open" href="javascript:void(0)">読む</a>
-              ${ROLE==="admin" ? `
-                <button class="btn btn-secondary edit">編集</button>
-                <button class="btn danger delete">削除</button>
-              ` : ""}
-            </div>
-          </div>
-        `;
-      }).join("") || `<p class="muted">一致するガイドがありません。</p>`;
-
-      // bind
-      $list.querySelectorAll(".open").forEach(a=>{
-        a.onclick = (ev)=>{
-          const card = ev.target.closest(".guide-card");
-          const id = card?.dataset?.id;
-          const g = cache.find(x=>x.id===id);
-          if (g) openViewer(g);
-        };
-      });
-      if (ROLE==="admin") {
-        $list.querySelectorAll(".edit").forEach(b=>{
-          b.onclick = (ev)=>{
-            const card = ev.target.closest(".guide-card");
-            const id = card?.dataset?.id;
-            const g = cache.find(x=>x.id===id);
-            if (g) openEditor(g);
-          };
-        });
-        $list.querySelectorAll(".delete").forEach(b=>{
-          b.onclick = async (ev)=>{
-            const card = ev.target.closest(".guide-card");
-            const id = card?.dataset?.id;
-            if (!confirm("このガイドを削除しますか？")) return;
-            try {
-              await db.collection("guides").doc(id).delete();
-              await loadGuides();
-              alert("削除しました");
-            } catch(e){
-              console.error(e); alert("削除に失敗しました。権限/ルールをご確認ください。");
-            }
-          };
-        });
+    // 加载全部 guides
+    async function loadGuides(){
+      const snap = await db.collection("guides").orderBy("updatedAt","desc").limit(200).get();
+      guides = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      applyFiltersAndRenderTree();
+      // 若URL有 ?guide=<id> 可自动打开
+      const p = new URLSearchParams(location.search);
+      const id = p.get("guide");
+      if (id){
+        const g = guides.find(x=>x.id===id);
+        if (g && (g.published || ROLE==="admin")) openDoc(g);
       }
     }
 
-    function openViewer(g){
+    // 组合过滤（树和全文）
+    function applyFiltersAndRenderTree(){
+      const tq = ($treeQ.value||"").toLowerCase().trim();
+      const q = ($q.value||"").toLowerCase().trim();
+      const cat = ($catSel.value||"").trim();
+      const tags = ($tag.value||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
+
+      filtered = guides.filter(g=>{
+        if (!g.published && ROLE!=="admin") return false;
+        if (cat && g.category!==cat) return false;
+        if (tags.length && !(g.tags||[]).some(t=> tags.some(k=> (t||"").toLowerCase().includes(k)))) return false;
+
+        const needle = (g.title||"") + " " + (g.tags||[]).join(",") + " " + (g.body||"");
+        const hitTree = !tq || ((g.title||"").toLowerCase().includes(tq) || (g.tags||[]).join(",").toLowerCase().includes(tq));
+        const hitFull = !q || needle.toLowerCase().includes(q);
+        return hitTree && hitFull;
+      });
+
+      renderTree(filtered);
+    }
+
+    // 构建目录树：category -> docs
+    function renderTree(items){
+      const byCat = {};
+      items.forEach(g=>{
+        const c = g.category || "その他";
+        (byCat[c] ||= []).push(g);
+      });
+
+      // 分类排序（可自定义）
+      const cats = Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ja'));
+
+      $tree.innerHTML = cats.map(cat=>{
+        const arr = byCat[cat].slice().sort((a,b)=> (a.title||"").localeCompare(b.title||"",'ja'));
+        const children = arr.map(g=>{
+          const tags = (g.tags||[]).map(t=>`<span class="tag">${t}</span>`).join("");
+          const draft = g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`;
+          const isActive = g.id===activeId ? "active" : "";
+          return `
+            <div class="doc ${isActive}" data-id="${g.id}">
+              <div><strong>${g.title||"(無題)"}</strong> ${draft}</div>
+              <div class="muted">${tags}</div>
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <li class="cat">
+            <div class="cat-head">
+              <i class="fa-solid fa-caret-down caret"></i>
+              <span class="badge">${cat}</span>
+              <span class="muted">（${arr.length}）</span>
+            </div>
+            <div class="cat-body">${children || `<div class="muted" style="padding:6px 10px;">項目がありません</div>`}</div>
+          </li>
+        `;
+      }).join("") || `<li><p class="muted">該当するガイドがありません。</p></li>`;
+
+      // 事件绑定：展开/折叠
+      $tree.querySelectorAll(".cat .cat-head").forEach(head=>{
+        head.onclick = ()=> head.parentElement.classList.toggle("collapsed");
+      });
+      // 事件绑定：点击文档
+      $tree.querySelectorAll(".doc").forEach(node=>{
+        node.onclick = ()=>{
+          const id = node.dataset.id;
+          const g = guides.find(x=>x.id===id);
+          if (g) openDoc(g);
+        };
+      });
+    }
+
+    function openDoc(g){
+      activeId = g.id;
+      // 高亮
+      $tree.querySelectorAll(".doc").forEach(n=> n.classList.toggle("active", n.dataset.id===activeId));
+      // 渲染正文
       $viewer.classList.remove("hidden");
+      $hint.classList.add("hidden");
       $vTitle.textContent = g.title || "(無題)";
-      const date = g.updatedAt?.toDate ? g.updatedAt.toDate() : (g.updatedAt || new Date());
-      const dstr = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
+      const d = g.updatedAt?.toDate ? g.updatedAt.toDate() : new Date();
+      const dstr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
       const tags = (g.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ");
+      const draft = g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`;
       $vMeta.innerHTML = `
-        <span class="badge">${g.category || "その他"}</span>
-        ${g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`}
+        <span class="badge">${g.category||"その他"}</span>
+        ${draft}
         ${tags}
         <span class="muted">更新日：${dstr}</span>
       `;
-      $vBody.innerHTML = marked.parse(g.body || "_（本文なし）_");
-      window.scrollTo({ top: $viewer.offsetTop - 12, behavior: "smooth" });
+      $vBody.innerHTML = marked.parse(g.body||"_（本文なし）_");
+
+      // 编辑/删除按钮显示
+      if (ROLE==="admin") {
+        document.getElementById("vOps").classList.remove("hidden");
+        document.getElementById("editBtn").onclick = ()=> openModal("ガイド編集", g);
+        document.getElementById("delBtn").onclick = async ()=>{
+          if (!confirm("このガイドを削除しますか？")) return;
+          await db.collection("guides").doc(g.id).delete();
+          await loadGuides();
+          $viewer.classList.add("hidden");
+          $hint.classList.remove("hidden");
+          alert("削除しました。");
+        };
+      } else {
+        document.getElementById("vOps").classList.add("hidden");
+      }
+
+      // URL 同步（可直接分享）
+      const url = new URL(location.href);
+      url.searchParams.set("guide", g.id);
+      history.replaceState(null, "", url.toString());
     }
 
-    /* ====== 新規/編集 ====== */
-    function openEditor(g=null){
-      if (ROLE!=="admin") return alert("権限がありません。");
-      editingId = g?.id || null;
-      $modalTitle.textContent = editingId ? "ガイド編集" : "ガイド新規";
-      $fTitle.value = g?.title || "";
-      $fCat.value = g?.category || "SIM・通信";
-      $fTags.value = (g?.tags || []).join(", ");
-      ensureEditor();
-      editor.value(g?.body || "");
-      $fPublished.value = String(!!g?.published);
-      $delBtn.style.display = editingId ? "inline-block" : "none";
-      openModal();
-    }
-
-    async function saveGuide(){
+    // 保存（新建/编辑）
+    document.getElementById("saveBtn").onclick = async ()=>{
       if (ROLE!=="admin") return alert("権限がありません。");
       const title = $fTitle.value.trim();
       const category = $fCat.value.trim() || "その他";
@@ -381,30 +446,43 @@
         updatedAt: new Date(),
         author: { uid: UID||null, email: EMAIL||null }
       };
+
       try{
-        if (editingId) {
-          await db.collection("guides").doc(editingId).set(payload, { merge:true });
+        const p = new URLSearchParams(location.search);
+        const currentId = p.get("guide"); // 若是“编辑”操作
+        if (currentId) {
+          await db.collection("guides").doc(currentId).set(payload, { merge:true });
+          closeModal();
+          await loadGuides();
+          const g = guides.find(x=>x.id===currentId);
+          if (g) openDoc(g);
         } else {
-          const docRef = await db.collection("guides").add(payload);
-          editingId = docRef.id;
+          const ref = await db.collection("guides").add(payload);
+          closeModal();
+          await loadGuides();
+          const g = guides.find(x=>x.id===ref.id);
+          if (g) openDoc(g);
         }
-        await loadGuides();
-        closeModal();
         alert("保存しました。");
       }catch(e){
         console.error(e); alert("保存に失敗しました。権限/ルールをご確認ください。");
       }
-    }
+    };
 
-    $saveBtn.onclick = saveGuide;
-    $newBtn && ($newBtn.onclick = ()=>openEditor(null));
-    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+    // 新建
+    $newBtn && ($newBtn.onclick = ()=>{
+      // 清空 URL 中的 guide 参数，表示“新建”
+      const url = new URL(location.href);
+      url.searchParams.delete("guide");
+      history.replaceState(null, "", url.toString());
+      openModal("ガイド新規");
+    });
 
-    /* ====== フィルタイベント ====== */
-    [$q,$cat,$tag].forEach(el => el.addEventListener("input", ()=>renderList()));
+    // 过滤事件
+    [$treeQ, $q, $catSel, $tag].forEach(el => el.addEventListener("input", applyFiltersAndRenderTree));
 
-    /* ====== 初期ロード ====== */
-    loadGuides().catch(e=>console.error(e));
+    // 初始化
+    loadGuides().catch(console.error);
   </script>
 </body>
 </html>
