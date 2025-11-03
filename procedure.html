@@ -3,107 +3,408 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>手続きガイド</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>手続きガイド（Wiki風掲示板）</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- EasyMDE（Markdownエディタ） -->
+  <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
+  <style>
+    .toolbar {display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .toolbar .search {flex:1;min-width:220px}
+    .toolbar input,.toolbar select {padding:8px;border:1px solid #ccc;border-radius:8px;width:100%}
+    .toolbar .btn {padding:8px 12px;border-radius:8px;background:#0a66c2;color:#fff;text-decoration:none;border:none;cursor:pointer}
+    .guide-list {max-width:980px;margin:12px auto}
+    .guide-card {background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;margin:10px 0}
+    .guide-card h3{margin:0 0 6px 0}
+    .meta {color:#64748b;font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
+    .badge {background:#eef;padding:2px 8px;border-radius:999px;font-size:12px}
+    .tag {background:#f0f9ff;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px}
+    .actions a,.actions button{margin-left:8px}
+    .muted {color:#64748b}
+    .viewer {background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:14px;max-width:980px;margin:16px auto}
+    .viewer h2{margin-top:0}
+    .hidden{display:none}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal{background:#fff;max-width:960px;width:92%;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);}
+    .modal header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eee}
+    .modal .body{padding:12px 14px}
+    .modal .row{display:grid;grid-template-columns:120px 1fr;gap:10px;margin:8px 0}
+    .modal input,.modal select,.modal textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px}
+    .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:10px 14px;border-top:1px solid #eee}
+    .danger{background:#dc2626}
+    .btn-secondary{background:#e5e7eb;color:#111}
+    @media (max-width:640px){.modal .row{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
   <header>
-    <h1>📄 手続きガイド（手续指南）</h1>
+    <h1>📄 手続きガイド（留学生向け Wiki）</h1>
     <nav class="navbar">
       <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
+      <a href="profile.html" class="btn">👤 プロフィール</a>
       <a href="login.html" class="btn">🔐 ログイン</a>
-      <!-- 管理入口（仅管理员显示） -->
       <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
   </header>
 
-  <main>
+  <main class="guide-list">
     <section class="intro">
-      <h2>📝 主要な手続き一覧</h2>
-      <p>留学生にとって最初に必要となる手続きの情報をまとめています。</p>
+      <p class="muted">在日留学生のための実用ガイド。SIM・住まい・銀行・市役所手続きなどをカテゴリ別にまとめています。</p>
     </section>
 
-    <section class="cards">
-      <div class="card">
-        <i class="fas fa-sim-card icon"></i>
-        <h3>SIMカードの契約</h3>
-        <ol class="guide-list">
-          <li>パスポートと在留カードを準備</li>
-          <li>通信会社を選ぶ（例：楽天、Y!mobile）</li>
-          <li>申し込みフォーム入力</li>
-          <li>本人確認とSIM受け取り</li>
-          <li>スマホに挿入して設定</li>
-        </ol>
+    <!-- ツールバー（検索/カテゴリ/タグ/新規） -->
+    <div class="toolbar">
+      <div class="search" title="タイトル・本文・タグから検索">
+        <input id="q" type="search" placeholder="🔎 キーワード検索（例：SIM / 在留カード / 住民票）">
       </div>
-
-      <div class="card">
-        <i class="fas fa-house icon"></i>
-        <h3>賃貸契約の流れ</h3>
-        <ol class="guide-list">
-          <li>不動産サイトで物件検索</li>
-          <li>内見予約 → 実際に見学</li>
-          <li>保証人や初期費用の確認</li>
-          <li>契約書類の提出と審査</li>
-          <li>鍵の受け取りと入居開始</li>
-        </ol>
+      <div style="width:180px">
+        <select id="cat">
+          <option value="">すべてのカテゴリ</option>
+          <option>SIM・通信</option>
+          <option>住まい・賃貸</option>
+          <option>銀行・口座</option>
+          <option>市役所・在留</option>
+          <option>学校・学籍</option>
+          <option>仕事・アルバイト</option>
+          <option>その他</option>
+        </select>
       </div>
-
-      <div class="card">
-        <i class="fas fa-university icon"></i>
-        <h3>銀行口座の開設</h3>
-        <ol class="guide-list">
-          <li>在留カード・学生証を準備</li>
-          <li>銀行窓口またはネットで申請</li>
-          <li>印鑑が必要な場合あり</li>
-          <li>本人確認 → 口座番号発行</li>
-          <li>キャッシュカードの受け取り</li>
-        </ol>
+      <div style="width:200px">
+        <input id="tag" type="text" placeholder="タグ（例：未成年, 保険, マイナンバー）">
       </div>
-    </section>
+      <button id="newBtn" class="btn admin-only" title="新しいガイドを作成">＋ 新規作成</button>
+    </div>
 
-    <!-- 示例：管理员可见的附加说明块（普通用户看不到） -->
-    <section class="card admin-only" style="margin-top:16px;">
-      <h3>🛠 管理メモ</h3>
-      <p>ここには手続きページに関する管理用メモやドラフトリンクを置けます（管理者のみ表示）。</p>
-    </section>
+    <!-- ガイド一覧 -->
+    <div id="list"></div>
+
+    <!-- 詳細ビュー（クリックで展開） -->
+    <article id="viewer" class="viewer hidden">
+      <h2 id="vTitle">タイトル</h2>
+      <div class="meta" id="vMeta"></div>
+      <div id="vBody" style="margin-top:12px"></div>
+    </article>
   </main>
 
   <footer>
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-  <!-- 页面联动脚本：读取登录邮箱与角色，非管理员隐藏 .admin-only -->
-  <script>
-    (function () {
-      const email = localStorage.getItem("auth_email");
-      const role  = localStorage.getItem("auth_role");
+  <!-- Modal: 編集/新規 -->
+  <div class="modal-backdrop" id="modalWrap">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header>
+        <h3 id="modalTitle">ガイド編集</h3>
+        <button id="closeModal" class="btn btn-secondary">✖</button>
+      </header>
+      <div class="body">
+        <div class="row">
+          <label>タイトル</label>
+          <input id="fTitle" type="text" placeholder="例：SIMカードの契約手順（未成年の場合）">
+        </div>
+        <div class="row">
+          <label>カテゴリ</label>
+          <select id="fCat">
+            <option>SIM・通信</option>
+            <option>住まい・賃貸</option>
+            <option>銀行・口座</option>
+            <option>市役所・在留</option>
+            <option>学校・学籍</option>
+            <option>仕事・アルバイト</option>
+            <option>その他</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>タグ</label>
+          <input id="fTags" type="text" placeholder="カンマ区切り：未成年, 保険, マイナンバー">
+        </div>
+        <div class="row" style="display:block">
+          <label style="display:block;margin-bottom:6px">本文（Markdown）</label>
+          <textarea id="fBody"></textarea>
+        </div>
+        <div class="row">
+          <label>公開</label>
+          <select id="fPublished">
+            <option value="true">公開</option>
+            <option value="false">非公開（下書き）</option>
+          </select>
+        </div>
+      </div>
+      <footer>
+        <button id="delBtn" class="btn danger admin-only">削除</button>
+        <button id="saveBtn" class="btn">保存</button>
+      </footer>
+    </div>
+  </div>
 
-      if (email) {
-        // 顶部状态条（可删除）
+  <!-- Firebase & libs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    /* ====== 認証状態（簡易ヘッダバー & 権限UI） ====== */
+    const ROLE  = localStorage.getItem("auth_role") || "user";
+    const EMAIL = localStorage.getItem("auth_email") || null;
+    const UID   = localStorage.getItem("auth_uid") || null;
+    (function () {
+      if (EMAIL) {
         const bar = document.createElement("div");
         bar.style.textAlign = "center";
         bar.style.padding = "6px";
         bar.style.background = "#f0f4f8";
         bar.style.color = "#333";
         bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
+        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE}）`;
         document.body.prepend(bar);
-
-        // 非管理员隐藏 admin-only
-        if (role !== "admin") {
-          document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-        }
-      } else {
-        // 未登录则隐藏 admin-only
-        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
       }
+      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
     })();
+
+    /* ====== Firebase 初期化 ====== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g",
+      authDomain: "kobe-life-guide.firebaseapp.com",
+      projectId: "kobe-life-guide",
+      storageBucket: "kobe-life-guide.firebasestorage.app",
+      messagingSenderId: "440390213094",
+      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    /* ====== UI 参照 ====== */
+    const $q = document.getElementById("q");
+    const $cat = document.getElementById("cat");
+    const $tag = document.getElementById("tag");
+    const $list = document.getElementById("list");
+    const $viewer = document.getElementById("viewer");
+    const $vTitle = document.getElementById("vTitle");
+    const $vMeta = document.getElementById("vMeta");
+    const $vBody = document.getElementById("vBody");
+
+    const $modalWrap = document.getElementById("modalWrap");
+    const $modalTitle = document.getElementById("modalTitle");
+    const $closeModal = document.getElementById("closeModal");
+    const $newBtn = document.getElementById("newBtn");
+    const $saveBtn = document.getElementById("saveBtn");
+    const $delBtn = document.getElementById("delBtn");
+
+    const $fTitle = document.getElementById("fTitle");
+    const $fCat = document.getElementById("fCat");
+    const $fTags = document.getElementById("fTags");
+    const $fBody = document.getElementById("fBody");
+    const $fPublished = document.getElementById("fPublished");
+
+    let editor = null;
+    let editingId = null; // doc id
+    let cache = []; // loaded guides (for client filter)
+
+    /* ====== エディタ初期化 ====== */
+    function ensureEditor() {
+      if (!editor) {
+        editor = new EasyMDE({
+          element: $fBody,
+          spellChecker: false,
+          minHeight: "200px",
+          renderingConfig: { singleLineBreaks: false },
+          autofocus: false
+        });
+      }
+    }
+
+    /* ====== モーダル開閉 ====== */
+    function openModal(title = "ガイド編集") {
+      $modalTitle.textContent = title;
+      $modalWrap.style.display = "flex";
+      ensureEditor();
+    }
+    function closeModal() {
+      $modalWrap.style.display = "none";
+      editingId = null;
+      if (editor) editor.value("");
+      $fTitle.value = "";
+      $fCat.value = "SIM・通信";
+      $fTags.value = "";
+      $fPublished.value = "true";
+    }
+    $closeModal.onclick = closeModal;
+
+    /* ====== データモデル ======
+      guides/{docId}:
+        title: string
+        category: string
+        tags: array<string>
+        body: string (markdown)
+        published: boolean
+        updatedAt: timestamp
+        author: { uid, email }
+    ================================= */
+
+    /* ====== 一覧取得 & レンダリング ====== */
+    async function loadGuides() {
+      const snap = await db.collection("guides")
+        .orderBy("updatedAt","desc")
+        .limit(100)
+        .get();
+      cache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderList();
+    }
+
+    function renderList() {
+      const q = ($q.value || "").toLowerCase().trim();
+      const cat = ($cat.value || "").trim();
+      const tag = ($tag.value || "").toLowerCase().trim();
+
+      const filtered = cache.filter(g => {
+        if (!g.published && ROLE !== "admin") return false;
+        const hitQ = !q || (g.title||"").toLowerCase().includes(q)
+                      || (g.body||"").toLowerCase().includes(q)
+                      || (g.tags||[]).join(",").toLowerCase().includes(q);
+        const hitCat = !cat || (g.category === cat);
+        const hitTag = !tag || (g.tags||[]).some(t => (t||"").toLowerCase().includes(tag));
+        return hitQ && hitCat && hitTag;
+      });
+
+      $list.innerHTML = filtered.map(g => {
+        const date = g.updatedAt?.toDate ? g.updatedAt.toDate() : (g.updatedAt || new Date());
+        const dstr = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
+        const tags = (g.tags||[]).map(t => `<span class="tag">${t}</span>`).join(" ");
+        const isDraft = g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`;
+        return `
+          <div class="guide-card" data-id="${g.id}">
+            <h3 style="margin:0">
+              <a href="javascript:void(0)" class="open">${g.title||"(無題)"}</a>
+            </h3>
+            <div class="meta">
+              <span class="badge">${g.category || "その他"}</span>
+              ${isDraft}
+              ${tags}
+              <span class="muted">更新日：${dstr}</span>
+            </div>
+            <div class="actions" style="margin-top:6px;">
+              <a class="btn btn-secondary open" href="javascript:void(0)">読む</a>
+              ${ROLE==="admin" ? `
+                <button class="btn btn-secondary edit">編集</button>
+                <button class="btn danger delete">削除</button>
+              ` : ""}
+            </div>
+          </div>
+        `;
+      }).join("") || `<p class="muted">一致するガイドがありません。</p>`;
+
+      // bind
+      $list.querySelectorAll(".open").forEach(a=>{
+        a.onclick = (ev)=>{
+          const card = ev.target.closest(".guide-card");
+          const id = card?.dataset?.id;
+          const g = cache.find(x=>x.id===id);
+          if (g) openViewer(g);
+        };
+      });
+      if (ROLE==="admin") {
+        $list.querySelectorAll(".edit").forEach(b=>{
+          b.onclick = (ev)=>{
+            const card = ev.target.closest(".guide-card");
+            const id = card?.dataset?.id;
+            const g = cache.find(x=>x.id===id);
+            if (g) openEditor(g);
+          };
+        });
+        $list.querySelectorAll(".delete").forEach(b=>{
+          b.onclick = async (ev)=>{
+            const card = ev.target.closest(".guide-card");
+            const id = card?.dataset?.id;
+            if (!confirm("このガイドを削除しますか？")) return;
+            try {
+              await db.collection("guides").doc(id).delete();
+              await loadGuides();
+              alert("削除しました");
+            } catch(e){
+              console.error(e); alert("削除に失敗しました。権限/ルールをご確認ください。");
+            }
+          };
+        });
+      }
+    }
+
+    function openViewer(g){
+      $viewer.classList.remove("hidden");
+      $vTitle.textContent = g.title || "(無題)";
+      const date = g.updatedAt?.toDate ? g.updatedAt.toDate() : (g.updatedAt || new Date());
+      const dstr = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
+      const tags = (g.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ");
+      $vMeta.innerHTML = `
+        <span class="badge">${g.category || "その他"}</span>
+        ${g.published ? "" : `<span class="badge" style="background:#fee2e2;color:#b91c1c">下書き</span>`}
+        ${tags}
+        <span class="muted">更新日：${dstr}</span>
+      `;
+      $vBody.innerHTML = marked.parse(g.body || "_（本文なし）_");
+      window.scrollTo({ top: $viewer.offsetTop - 12, behavior: "smooth" });
+    }
+
+    /* ====== 新規/編集 ====== */
+    function openEditor(g=null){
+      if (ROLE!=="admin") return alert("権限がありません。");
+      editingId = g?.id || null;
+      $modalTitle.textContent = editingId ? "ガイド編集" : "ガイド新規";
+      $fTitle.value = g?.title || "";
+      $fCat.value = g?.category || "SIM・通信";
+      $fTags.value = (g?.tags || []).join(", ");
+      ensureEditor();
+      editor.value(g?.body || "");
+      $fPublished.value = String(!!g?.published);
+      $delBtn.style.display = editingId ? "inline-block" : "none";
+      openModal();
+    }
+
+    async function saveGuide(){
+      if (ROLE!=="admin") return alert("権限がありません。");
+      const title = $fTitle.value.trim();
+      const category = $fCat.value.trim() || "その他";
+      const tags = ($fTags.value||"").split(",").map(s=>s.trim()).filter(Boolean);
+      const body = editor ? editor.value() : ($fBody.value || "");
+      const published = $fPublished.value === "true";
+      if (!title) return alert("タイトルを入力してください。");
+
+      const payload = {
+        title, category, tags, body, published,
+        updatedAt: new Date(),
+        author: { uid: UID||null, email: EMAIL||null }
+      };
+      try{
+        if (editingId) {
+          await db.collection("guides").doc(editingId).set(payload, { merge:true });
+        } else {
+          const docRef = await db.collection("guides").add(payload);
+          editingId = docRef.id;
+        }
+        await loadGuides();
+        closeModal();
+        alert("保存しました。");
+      }catch(e){
+        console.error(e); alert("保存に失敗しました。権限/ルールをご確認ください。");
+      }
+    }
+
+    $saveBtn.onclick = saveGuide;
+    $newBtn && ($newBtn.onclick = ()=>openEditor(null));
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    /* ====== フィルタイベント ====== */
+    [$q,$cat,$tag].forEach(el => el.addEventListener("input", ()=>renderList()));
+
+    /* ====== 初期ロード ====== */
+    loadGuides().catch(e=>console.error(e));
   </script>
 </body>
 </html>
