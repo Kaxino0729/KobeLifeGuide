@@ -7,8 +7,10 @@
   <title>手続きガイド（Wiki風・ツリー）</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <!-- Markdown editor/viewer libs -->
-  <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
+
+  <!-- TinyMCE（WYSIWYGエディター） -->
+  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
+
   <style>
     /* ===== Layout ===== */
     body { margin:0; }
@@ -76,6 +78,7 @@
     }
     .viewer h2 { margin-top:0; }
     .meta { color:#64748b; font-size:12px; display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+    .viewer img { max-width:100%; height:auto; }
 
     /* ===== Modal editor ===== */
     .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:1000}
@@ -182,7 +185,8 @@
           <input id="fTags" type="text" placeholder="カンマ区切り：未成年, 保険, マイナンバー">
         </div>
         <div class="row" style="display:block">
-          <label style="display:block;margin-bottom:6px">本文（Markdown）</label>
+          <label style="display:block;margin-bottom:6px">本文（リッチテキスト）</label>
+          <!-- TinyMCE の対象 -->
           <textarea id="fBody"></textarea>
         </div>
         <div class="row">
@@ -199,11 +203,9 @@
     </div>
   </div>
 
-  <!-- ===== Firebase & libs ===== -->
+  <!-- ===== Firebase & app script ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <script>
     /* ==== Auth banner & role gating ==== */
@@ -236,85 +238,85 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ==== Marked 全局配置（防止多余星号、支持 GFM） ==== */
-    marked.setOptions({
-      breaks: true,
-      gfm: true,
-      smartLists: true,
-      smartypants: false,
-      headerIds: false
-    });
-
     /* ==== DOM refs ==== */
-    const $tree = document.getElementById("tree");
-    const $treeQ = document.getElementById("treeQ");
-    const $q = document.getElementById("q");
+    const $tree   = document.getElementById("tree");
+    const $treeQ  = document.getElementById("treeQ");
+    const $q      = document.getElementById("q");
     const $catSel = document.getElementById("catSel");
-    const $tag = document.getElementById("tag");
+    const $tag    = document.getElementById("tag");
     const $viewer = document.getElementById("viewer");
     const $vTitle = document.getElementById("vTitle");
-    const $vMeta = document.getElementById("vMeta");
-    const $vBody = document.getElementById("vBody");
-    const $vOps = document.getElementById("vOps");
-    const $hint = document.getElementById("hint");
+    const $vMeta  = document.getElementById("vMeta");
+    const $vBody  = document.getElementById("vBody");
+    const $vOps   = document.getElementById("vOps");
+    const $hint   = document.getElementById("hint");
 
-    const $modalWrap = document.getElementById("modalWrap");
+    const $modalWrap  = document.getElementById("modalWrap");
     const $modalTitle = document.getElementById("modalTitle");
     const $closeModal = document.getElementById("closeModal");
-    const $newBtn = document.getElementById("newBtn");
-    const $saveBtn = document.getElementById("saveBtn");
+    const $newBtn     = document.getElementById("newBtn");
+    const $saveBtn    = document.getElementById("saveBtn");
 
-    const $fTitle = document.getElementById("fTitle");
-    const $fCat = document.getElementById("fCat");
-    const $fTags = document.getElementById("fTags");
-    const $fBody = document.getElementById("fBody");
+    const $fTitle     = document.getElementById("fTitle");
+    const $fCat       = document.getElementById("fCat");
+    const $fTags      = document.getElementById("fTags");
     const $fPublished = document.getElementById("fPublished");
 
-    let editor = null;
-    let guides = [];     // 原始数据
-    let filtered = [];   // 过滤后用于构建树的数据
-    let activeId = null; // 当前打开的文档
+    // TinyMCE インスタンス
+    let editorInstance = null;
 
-    /* ==== 初始化 EasyMDE（修正粗体/斜体/链接等行为） ==== */
-    function ensureEditor(){
-      if (!editor) {
-        editor = new EasyMDE({
-          element: $fBody,
-          spellChecker: false,
-          minHeight: "220px",
-          autofocus: false,
-          renderingConfig: { singleLineBreaks: false },
-          autoDownloadFontAwesome: false,
-          forceSync: true,        // 保证 Markdown 文本同步到 textarea
-          autosave: { enabled: false },
-          promptURLs: true,       // 插入链接/图片时出现对话框
-          toolbar: [
-            "bold", "italic", "heading", "|",
-            "quote", "unordered-list", "ordered-list", "|",
-            "link", "image", "|",
-            "preview", "side-by-side", "fullscreen"
-          ]
-        });
-      }
-    }
+    // TinyMCE 初期化（ページロード時に一度だけ）
+    tinymce.init({
+      selector: '#fBody',
+      height: 360,
+      menubar: false,
+      language: 'ja',
+      plugins: 'link lists image table code',
+      toolbar:
+        'undo redo | bold italic underline | bullist numlist | ' +
+        'link image | table | removeformat | code',
+      branding: false,
+      default_link_target: '_blank',
+      link_assume_external_targets: true,
+      // 画像は URL 指定のみ（ローカルアップロードは無効のまま）
+      automatic_uploads: false
+    }).then(editors => {
+      editorInstance = editors[0];
+    }).catch(e => {
+      console.error('TinyMCE init error:', e);
+    });
+
+    let guides   = [];   // 全ガイド
+    let filtered = [];   // フィルタ済み
+    let activeId = null; // 現在閲覧中のID
+    let editingId = null;// 現在編集している文書ID（新規は null）
 
     // Modal open/close
     function openModal(title="ガイド編集", doc=null){
-      if (ROLE !== "admin") return alert("権限がありません。");
-      ensureEditor();
+      if (ROLE !== "admin") {
+        alert("権限がありません。");
+        return;
+      }
+      if (!editorInstance) {
+        alert("エディターを読み込み中です。数秒後にもう一度お試しください。");
+        return;
+      }
+
+      editingId = doc ? doc.id : null;  // ここで編集対象を記録
       $modalTitle.textContent = title;
       $modalWrap.style.display = "flex";
+
       if (doc){
         $fTitle.value = doc.title || "";
-        $fCat.value = doc.category || "その他";
-        $fTags.value = (doc.tags||[]).join(", ");
-        editor.value(doc.body || "");
+        $fCat.value   = doc.category || "その他";
+        $fTags.value  = (doc.tags||[]).join(", ");
+        editorInstance.setContent(doc.body || "");
         $fPublished.value = String(!!doc.published);
       } else {
         $fTitle.value = "";
-        $fCat.value = "SIM・通信";
-        $fTags.value = "";
-        editor.value("");
+        $fCat.value   = "SIM・通信";
+        $fTags.value  = "";
+        editorInstance.setContent("");
         $fPublished.value = "true";
       }
     }
@@ -323,12 +325,13 @@
     }
     $closeModal.onclick = closeModal;
 
-    // 加载全部 guides
+    // Firestore: guides 読み込み
     async function loadGuides(){
       const snap = await db.collection("guides").orderBy("updatedAt","desc").limit(200).get();
       guides = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       applyFiltersAndRenderTree();
-      // 若URL有 ?guide=<id> 可自动打开
+
+      // URLに ?guide=<id> があれば自動で開く
       const p = new URLSearchParams(location.search);
       const id = p.get("guide");
       if (id){
@@ -337,11 +340,11 @@
       }
     }
 
-    // 组合过滤（树和全文）
+    // フィルタ適用 → ツリー再描画
     function applyFiltersAndRenderTree(){
-      const tq = ($treeQ.value||"").toLowerCase().trim();
-      const q = ($q.value||"").toLowerCase().trim();
-      const cat = ($catSel.value||"").trim();
+      const tq   = ($treeQ.value||"").toLowerCase().trim();
+      const q    = ($q.value||"").toLowerCase().trim();
+      const cat  = ($catSel.value||"").trim();
       const tags = ($tag.value||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
 
       filtered = guides.filter(g=>{
@@ -358,7 +361,7 @@
       renderTree(filtered);
     }
 
-    // 构建目录树：category -> docs
+    // ツリー描画
     function renderTree(items){
       const byCat = {};
       items.forEach(g=>{
@@ -366,7 +369,6 @@
         (byCat[c] ||= []).push(g);
       });
 
-      // 分类排序（可自定义）
       const cats = Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ja'));
 
       $tree.innerHTML = cats.map(cat=>{
@@ -395,11 +397,11 @@
         `;
       }).join("") || `<li><p class="muted">該当するガイドがありません。</p></li>`;
 
-      // 事件绑定：展开/折叠
+      // 展開/折りたたみ
       $tree.querySelectorAll(".cat .cat-head").forEach(head=>{
         head.onclick = ()=> head.parentElement.classList.toggle("collapsed");
       });
-      // 事件绑定：点击文档
+      // 文書クリックで表示
       $tree.querySelectorAll(".doc").forEach(node=>{
         node.onclick = ()=>{
           const id = node.dataset.id;
@@ -409,14 +411,15 @@
       });
     }
 
+    // ガイド表示
     function openDoc(g){
       activeId = g.id;
-      // 高亮
       $tree.querySelectorAll(".doc").forEach(n=> n.classList.toggle("active", n.dataset.id===activeId));
-      // 渲染正文
+
       $viewer.classList.remove("hidden");
       $hint.classList.add("hidden");
       $vTitle.textContent = g.title || "(無題)";
+
       const d = g.updatedAt?.toDate ? g.updatedAt.toDate() : new Date();
       const dstr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
       const tags = (g.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ");
@@ -427,12 +430,17 @@
         ${tags}
         <span class="muted">更新日：${dstr}</span>
       `;
-      // 使用 marked 渲染 Markdown（支持粗体/斜体/列表/链接/图片）
-      $vBody.innerHTML = marked.parse(g.body || "_（本文なし）_");
 
-      // 编辑/删除按钮显示
+      // ★ ここがポイント：body は HTML として解釈
+      const body = g.body || "";
+      if (body.trim()) {
+        $vBody.innerHTML = body;
+      } else {
+        $vBody.innerHTML = "<p class='muted'>（本文なし）</p>";
+      }
+
       if (ROLE==="admin") {
-        document.getElementById("vOps").classList.remove("hidden");
+        $vOps.classList.remove("hidden");
         document.getElementById("editBtn").onclick = ()=> openModal("ガイド編集", g);
         document.getElementById("delBtn").onclick = async ()=>{
           if (!confirm("このガイドを削除しますか？")) return;
@@ -443,24 +451,35 @@
           alert("削除しました。");
         };
       } else {
-        document.getElementById("vOps").classList.add("hidden");
+        $vOps.classList.add("hidden");
       }
 
-      // URL 同步（可直接分享）
+      // URL 同期
       const url = new URL(location.href);
       url.searchParams.set("guide", g.id);
       history.replaceState(null, "", url.toString());
     }
 
-    // 保存（新建/编辑）
-    document.getElementById("saveBtn").onclick = async ()=>{
-      if (ROLE!=="admin") return alert("権限がありません。");
+    // 保存（新規/編集）
+    $saveBtn.onclick = async ()=>{
+      if (ROLE!=="admin") {
+        alert("権限がありません。");
+        return;
+      }
+      if (!editorInstance) {
+        alert("エディターがまだ準備できていません。");
+        return;
+      }
+
       const title = $fTitle.value.trim();
       const category = $fCat.value.trim() || "その他";
       const tags = ($fTags.value||"").split(",").map(s=>s.trim()).filter(Boolean);
-      const body = editor ? editor.value() : ($fBody.value || "");
+      const body = editorInstance.getContent() || "";
       const published = $fPublished.value === "true";
-      if (!title) return alert("タイトルを入力してください。");
+      if (!title) {
+        alert("タイトルを入力してください。");
+        return;
+      }
 
       const payload = {
         title, category, tags, body, published,
@@ -469,28 +488,26 @@
       };
 
       try{
-        const p = new URLSearchParams(location.search);
-        const currentId = p.get("guide"); // 若是“编辑”操作
-        if (currentId) {
-          await db.collection("guides").doc(currentId).set(payload, { merge:true });
-          closeModal();
-          await loadGuides();
-          const g = guides.find(x=>x.id===currentId);
-          if (g) openDoc(g);
+        if (editingId) {
+          // 既存ドキュメントを更新
+          await db.collection("guides").doc(editingId).set(payload, { merge:true });
         } else {
+          // 新規作成
           const ref = await db.collection("guides").add(payload);
-          closeModal();
-          await loadGuides();
-          const g = guides.find(x=>x.id===ref.id);
-          if (g) openDoc(g);
+          editingId = ref.id;
         }
+        closeModal();
+        await loadGuides();
+        const g = guides.find(x=>x.id===editingId);
+        if (g) openDoc(g);
         alert("保存しました。");
       }catch(e){
-        console.error(e); alert("保存に失敗しました。権限/ルールをご確認ください。");
+        console.error(e);
+        alert("保存に失敗しました。権限/ルールをご確認ください。");
       }
     };
 
-    // 新建
+    // 新規ボタン
     $newBtn && ($newBtn.onclick = ()=>{
       const url = new URL(location.href);
       url.searchParams.delete("guide");
@@ -498,10 +515,10 @@
       openModal("ガイド新規");
     });
 
-    // 过滤事件
+    // 各フィルタ入力イベント
     [$treeQ, $q, $catSel, $tag].forEach(el => el.addEventListener("input", applyFiltersAndRenderTree));
 
-    // 初始化
+    // 初期ロード
     loadGuides().catch(console.error);
   </script>
 </body>
