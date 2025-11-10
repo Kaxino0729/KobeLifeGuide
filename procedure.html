@@ -7,33 +7,54 @@
   <title>手続きガイド（Wiki風・ツリー）</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
   <!-- Markdown editor/viewer libs -->
   <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
 
   <style>
     /* ===== Layout ===== */
-    body { margin:0; }
-    header { padding:12px 16px; }
-    .layout {
-      display:grid;
-      grid-template-columns: 280px 1fr;
-      gap:0;
-      min-height: calc(100vh - 120px);
+
+    /* ★ 新增：让中间区域可以用剩下的高度，并允许内部滚动 */
+    html, body {
+      height: 100%;
     }
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 12px 16px;
+      flex: 0 0 auto;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 0;
+      /* header + footer 约 120px 高度，其余给中间区域 */
+      height: calc(100vh - 120px);
+      flex: 1 1 auto;
+      overflow: hidden; /* 防止中间区域无限拉长，内部滚动 */
+    }
+
     @media (max-width: 900px){
       .layout { grid-template-columns: 1fr; }
       .sidebar { order:2; }
       .content { order:1; }
     }
+
     .sidebar {
       border-right:1px solid #e6e6e6;
       padding:12px 10px;
       background:#fafafa;
+      overflow-y: auto;  /* ★ 左边目录可滚动 */
     }
+
     .content {
       padding:14px 16px;
       background:#fff;
+      overflow-y: auto;  /* ★ 右边正文 / viewer 可滚动 */
     }
 
     /* ===== Toolbar (top of content) ===== */
@@ -84,15 +105,28 @@
       position:fixed; inset:0; background:rgba(0,0,0,.35);
       display:none; align-items:center; justify-content:center; z-index:1000
     }
+
+    /* ★ 修改：modal 高度限制 + 内部可滚动，防止按钮被挤出屏幕 */
     .modal{
-      background:#fff; max-width:960px; width:92%;
-      border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+      background:#fff;
+      max-width:960px;
+      width:92%;
+      max-height:90vh;           /* 限制最大高度 */
+      border-radius:12px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+      display:flex;
+      flex-direction:column;
     }
     .modal header{
       display:flex; justify-content:space-between; align-items:center;
-      padding:10px 14px; border-bottom:1px solid #eee
+      padding:10px 14px; border-bottom:1px solid #eee;
+      flex:0 0 auto;
     }
-    .modal .body{ padding:12px 14px }
+    .modal .body{
+      padding:12px 14px;
+      flex:1 1 auto;
+      overflow-y:auto;           /* ★ 内容区域可滚动 */
+    }
     .modal .row{
       display:grid; grid-template-columns:120px 1fr;
       gap:10px; margin:8px 0
@@ -102,10 +136,13 @@
     }
     .modal footer{
       display:flex; gap:10px; justify-content:flex-end;
-      padding:10px 14px; border-top:1px solid #eee
+      padding:10px 14px; border-top:1px solid #eee;
+      flex:0 0 auto;
     }
     .danger{ background:#dc2626; color:#fff; }
-    @media (max-width:640px){ .modal .row{ grid-template-columns:1fr } }
+    @media (max-width:640px){
+      .modal .row{ grid-template-columns:1fr }
+    }
 
     .hidden{ display:none; }
   </style>
@@ -281,9 +318,9 @@
     const $fPublished = document.getElementById("fPublished");
 
     let editor = null;
-    let guides = [];     // 原始数据
-    let filtered = [];   // 过滤后用于构建树的数据
-    let activeId = null; // 当前打开的文档
+    let guides = [];
+    let filtered = [];
+    let activeId = null;
 
     function ensureEditor(){
       if (!editor) {
@@ -301,7 +338,6 @@
             "preview", "side-by-side", "fullscreen", "guide"
           ],
           previewRender: (plainText, preview) => {
-            // 预览区域使用 marked 渲染 Markdown → HTML
             if (typeof marked !== "undefined") {
               preview.innerHTML = marked.parse(plainText);
             } else {
@@ -310,19 +346,12 @@
             return preview.innerHTML;
           }
         });
-
-        // 初始化后自动进入「左右分栏预览」模式
         setTimeout(() => {
-          try {
-            editor.toggleSideBySide();
-          } catch (e) {
-            console.warn("toggleSideBySide failed:", e);
-          }
+          try { editor.toggleSideBySide(); } catch (e) { console.warn("toggleSideBySide failed:", e); }
         }, 0);
       }
     }
 
-    // Modal open/close
     function openModal(title="ガイド編集", doc=null){
       if (ROLE !== "admin") return alert("権限がありません。");
       ensureEditor();
@@ -347,12 +376,10 @@
     }
     $closeModal.onclick = closeModal;
 
-    // 加载全部 guides
     async function loadGuides(){
       const snap = await db.collection("guides").orderBy("updatedAt","desc").limit(200).get();
       guides = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       applyFiltersAndRenderTree();
-      // 若URL有 ?guide=<id> 可自动打开
       const p = new URLSearchParams(location.search);
       const id = p.get("guide");
       if (id){
@@ -361,7 +388,6 @@
       }
     }
 
-    // 组合过滤（树和全文）
     function applyFiltersAndRenderTree(){
       const tq = ($treeQ.value||"").toLowerCase().trim();
       const q = ($q.value||"").toLowerCase().trim();
@@ -372,7 +398,6 @@
         if (!g.published && ROLE!=="admin") return false;
         if (cat && g.category!==cat) return false;
         if (tags.length && !(g.tags||[]).some(t=> tags.some(k=> (t||"").toLowerCase().includes(k)))) return false;
-
         const needle = (g.title||"") + " " + (g.tags||[]).join(",") + " " + (g.body||"");
         const hitTree = !tq || ((g.title||"").toLowerCase().includes(tq) || (g.tags||[]).join(",").toLowerCase().includes(tq));
         const hitFull = !q || needle.toLowerCase().includes(q);
@@ -382,7 +407,6 @@
       renderTree(filtered);
     }
 
-    // 构建目录树：category -> docs
     function renderTree(items){
       const byCat = {};
       items.forEach(g=>{
@@ -418,11 +442,9 @@
         `;
       }).join("") || `<li><p class="muted">該当するガイドがありません。</p></li>`;
 
-      // 展开/折叠
       $tree.querySelectorAll(".cat .cat-head").forEach(head=>{
         head.onclick = ()=> head.parentElement.classList.toggle("collapsed");
       });
-      // 点击文档
       $tree.querySelectorAll(".doc").forEach(node=>{
         node.onclick = ()=>{
           const id = node.dataset.id;
@@ -434,9 +456,7 @@
 
     function openDoc(g){
       activeId = g.id;
-      // 高亮
       $tree.querySelectorAll(".doc").forEach(n=> n.classList.toggle("active", n.dataset.id===activeId));
-      // 渲染正文
       $viewer.classList.remove("hidden");
       $hint.classList.add("hidden");
       $vTitle.textContent = g.title || "(無題)";
@@ -452,7 +472,6 @@
       `;
       $vBody.innerHTML = marked.parse(g.body||"_（本文なし）_");
 
-      // 编辑/删除按钮显示
       if (ROLE==="admin") {
         document.getElementById("vOps").classList.remove("hidden");
         document.getElementById("editBtn").onclick = ()=> openModal("ガイド編集", g);
@@ -468,13 +487,11 @@
         document.getElementById("vOps").classList.add("hidden");
       }
 
-      // URL 同步（可直接分享）
       const url = new URL(location.href);
       url.searchParams.set("guide", g.id);
       history.replaceState(null, "", url.toString());
     }
 
-    // 保存（新建/编辑）
     document.getElementById("saveBtn").onclick = async ()=>{
       if (ROLE!=="admin") return alert("権限がありません。");
       const title = $fTitle.value.trim();
@@ -492,7 +509,7 @@
 
       try{
         const p = new URLSearchParams(location.search);
-        const currentId = p.get("guide"); // 若是“编辑”操作
+        const currentId = p.get("guide");
         if (currentId) {
           await db.collection("guides").doc(currentId).set(payload, { merge:true });
           closeModal();
@@ -513,7 +530,6 @@
       }
     };
 
-    // 新建
     $newBtn && ($newBtn.onclick = ()=>{
       const url = new URL(location.href);
       url.searchParams.delete("guide");
@@ -521,10 +537,8 @@
       openModal("ガイド新規");
     });
 
-    // 过滤事件
     [$treeQ, $q, $catSel, $tag].forEach(el => el.addEventListener("input", applyFiltersAndRenderTree));
 
-    // 初始化
     loadGuides().catch(console.error);
   </script>
 </body>
