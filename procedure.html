@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-  <!-- TinyMCE（WYSIWYGエディター） -->
-  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
+  <!-- Markdown editor/viewer libs -->
+  <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
 
   <style>
     /* ===== Layout ===== */
@@ -78,16 +78,32 @@
     }
     .viewer h2 { margin-top:0; }
     .meta { color:#64748b; font-size:12px; display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
-    .viewer img { max-width:100%; height:auto; }
 
     /* ===== Modal editor ===== */
-    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:1000}
-    .modal{ background:#fff; max-width:960px; width:92%; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-    .modal header{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #eee }
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
+      display:none; align-items:center; justify-content:center; z-index:1000
+    }
+    .modal{
+      background:#fff; max-width:960px; width:92%;
+      border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    .modal header{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 14px; border-bottom:1px solid #eee
+    }
     .modal .body{ padding:12px 14px }
-    .modal .row{ display:grid; grid-template-columns:120px 1fr; gap:10px; margin:8px 0 }
-    .modal input,.modal select,.modal textarea{ width:100%; padding:8px; border:1px solid #ccc; border-radius:8px }
-    .modal footer{ display:flex; gap:10px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #eee }
+    .modal .row{
+      display:grid; grid-template-columns:120px 1fr;
+      gap:10px; margin:8px 0
+    }
+    .modal input,.modal select,.modal textarea{
+      width:100%; padding:8px; border:1px solid #ccc; border-radius:8px
+    }
+    .modal footer{
+      display:flex; gap:10px; justify-content:flex-end;
+      padding:10px 14px; border-top:1px solid #eee
+    }
     .danger{ background:#dc2626; color:#fff; }
     @media (max-width:640px){ .modal .row{ grid-template-columns:1fr } }
 
@@ -185,8 +201,7 @@
           <input id="fTags" type="text" placeholder="カンマ区切り：未成年, 保険, マイナンバー">
         </div>
         <div class="row" style="display:block">
-          <label style="display:block;margin-bottom:6px">本文（リッチテキスト）</label>
-          <!-- TinyMCE の対象 -->
+          <label style="display:block;margin-bottom:6px">本文（Markdown）</label>
           <textarea id="fBody"></textarea>
         </div>
         <div class="row">
@@ -203,9 +218,11 @@
     </div>
   </div>
 
-  <!-- ===== Firebase & app script ===== -->
+  <!-- ===== Firebase & libs ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <script>
     /* ==== Auth banner & role gating ==== */
@@ -239,84 +256,65 @@
     const db = firebase.firestore();
 
     /* ==== DOM refs ==== */
-    const $tree   = document.getElementById("tree");
-    const $treeQ  = document.getElementById("treeQ");
-    const $q      = document.getElementById("q");
+    const $tree = document.getElementById("tree");
+    const $treeQ = document.getElementById("treeQ");
+    const $q = document.getElementById("q");
     const $catSel = document.getElementById("catSel");
-    const $tag    = document.getElementById("tag");
+    const $tag = document.getElementById("tag");
     const $viewer = document.getElementById("viewer");
     const $vTitle = document.getElementById("vTitle");
-    const $vMeta  = document.getElementById("vMeta");
-    const $vBody  = document.getElementById("vBody");
-    const $vOps   = document.getElementById("vOps");
-    const $hint   = document.getElementById("hint");
+    const $vMeta = document.getElementById("vMeta");
+    const $vBody = document.getElementById("vBody");
+    const $vOps = document.getElementById("vOps");
+    const $hint = document.getElementById("hint");
 
-    const $modalWrap  = document.getElementById("modalWrap");
+    const $modalWrap = document.getElementById("modalWrap");
     const $modalTitle = document.getElementById("modalTitle");
     const $closeModal = document.getElementById("closeModal");
-    const $newBtn     = document.getElementById("newBtn");
-    const $saveBtn    = document.getElementById("saveBtn");
+    const $newBtn = document.getElementById("newBtn");
+    const $saveBtn = document.getElementById("saveBtn");
 
-    const $fTitle     = document.getElementById("fTitle");
-    const $fCat       = document.getElementById("fCat");
-    const $fTags      = document.getElementById("fTags");
+    const $fTitle = document.getElementById("fTitle");
+    const $fCat = document.getElementById("fCat");
+    const $fTags = document.getElementById("fTags");
+    const $fBody = document.getElementById("fBody");
     const $fPublished = document.getElementById("fPublished");
 
-    // TinyMCE インスタンス
-    let editorInstance = null;
+    let editor = null;
+    let guides = [];     // 原始数据
+    let filtered = [];   // 过滤后用于构建树的数据
+    let activeId = null; // 当前打开的文档
 
-    // TinyMCE 初期化（ページロード時に一度だけ）
-    tinymce.init({
-      selector: '#fBody',
-      height: 360,
-      menubar: false,
-      language: 'ja',
-      plugins: 'link lists image table code',
-      toolbar:
-        'undo redo | bold italic underline | bullist numlist | ' +
-        'link image | table | removeformat | code',
-      branding: false,
-      default_link_target: '_blank',
-      link_assume_external_targets: true,
-      // 画像は URL 指定のみ（ローカルアップロードは無効のまま）
-      automatic_uploads: false
-    }).then(editors => {
-      editorInstance = editors[0];
-    }).catch(e => {
-      console.error('TinyMCE init error:', e);
-    });
-
-    let guides   = [];   // 全ガイド
-    let filtered = [];   // フィルタ済み
-    let activeId = null; // 現在閲覧中のID
-    let editingId = null;// 現在編集している文書ID（新規は null）
+    function ensureEditor(){
+      if (!editor) {
+        editor = new EasyMDE({
+          element: $fBody,
+          spellChecker: false,
+          minHeight: "220px",
+          renderingConfig: { singleLineBreaks: false },
+          autofocus: false,
+          status: false
+        });
+      }
+    }
 
     // Modal open/close
     function openModal(title="ガイド編集", doc=null){
-      if (ROLE !== "admin") {
-        alert("権限がありません。");
-        return;
-      }
-      if (!editorInstance) {
-        alert("エディターを読み込み中です。数秒後にもう一度お試しください。");
-        return;
-      }
-
-      editingId = doc ? doc.id : null;  // ここで編集対象を記録
+      if (ROLE !== "admin") return alert("権限がありません。");
+      ensureEditor();
       $modalTitle.textContent = title;
       $modalWrap.style.display = "flex";
-
       if (doc){
         $fTitle.value = doc.title || "";
-        $fCat.value   = doc.category || "その他";
-        $fTags.value  = (doc.tags||[]).join(", ");
-        editorInstance.setContent(doc.body || "");
+        $fCat.value = doc.category || "その他";
+        $fTags.value = (doc.tags||[]).join(", ");
+        editor.value(doc.body || "");
         $fPublished.value = String(!!doc.published);
       } else {
         $fTitle.value = "";
-        $fCat.value   = "SIM・通信";
-        $fTags.value  = "";
-        editorInstance.setContent("");
+        $fCat.value = "SIM・通信";
+        $fTags.value = "";
+        editor.value("");
         $fPublished.value = "true";
       }
     }
@@ -325,13 +323,12 @@
     }
     $closeModal.onclick = closeModal;
 
-    // Firestore: guides 読み込み
+    // 加载全部 guides
     async function loadGuides(){
       const snap = await db.collection("guides").orderBy("updatedAt","desc").limit(200).get();
       guides = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       applyFiltersAndRenderTree();
-
-      // URLに ?guide=<id> があれば自動で開く
+      // 若URL有 ?guide=<id> 可自动打开
       const p = new URLSearchParams(location.search);
       const id = p.get("guide");
       if (id){
@@ -340,11 +337,11 @@
       }
     }
 
-    // フィルタ適用 → ツリー再描画
+    // 组合过滤（树和全文）
     function applyFiltersAndRenderTree(){
-      const tq   = ($treeQ.value||"").toLowerCase().trim();
-      const q    = ($q.value||"").toLowerCase().trim();
-      const cat  = ($catSel.value||"").trim();
+      const tq = ($treeQ.value||"").toLowerCase().trim();
+      const q = ($q.value||"").toLowerCase().trim();
+      const cat = ($catSel.value||"").trim();
       const tags = ($tag.value||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
 
       filtered = guides.filter(g=>{
@@ -361,7 +358,7 @@
       renderTree(filtered);
     }
 
-    // ツリー描画
+    // 构建目录树：category -> docs
     function renderTree(items){
       const byCat = {};
       items.forEach(g=>{
@@ -369,6 +366,7 @@
         (byCat[c] ||= []).push(g);
       });
 
+      // 分类排序
       const cats = Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ja'));
 
       $tree.innerHTML = cats.map(cat=>{
@@ -397,11 +395,11 @@
         `;
       }).join("") || `<li><p class="muted">該当するガイドがありません。</p></li>`;
 
-      // 展開/折りたたみ
+      // 展开/折叠
       $tree.querySelectorAll(".cat .cat-head").forEach(head=>{
         head.onclick = ()=> head.parentElement.classList.toggle("collapsed");
       });
-      // 文書クリックで表示
+      // 点击文档
       $tree.querySelectorAll(".doc").forEach(node=>{
         node.onclick = ()=>{
           const id = node.dataset.id;
@@ -411,15 +409,14 @@
       });
     }
 
-    // ガイド表示
     function openDoc(g){
       activeId = g.id;
+      // 高亮
       $tree.querySelectorAll(".doc").forEach(n=> n.classList.toggle("active", n.dataset.id===activeId));
-
+      // 正文
       $viewer.classList.remove("hidden");
       $hint.classList.add("hidden");
       $vTitle.textContent = g.title || "(無題)";
-
       const d = g.updatedAt?.toDate ? g.updatedAt.toDate() : new Date();
       const dstr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
       const tags = (g.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ");
@@ -430,17 +427,11 @@
         ${tags}
         <span class="muted">更新日：${dstr}</span>
       `;
+      $vBody.innerHTML = marked.parse(g.body||"_（本文なし）_");
 
-      // ★ ここがポイント：body は HTML として解釈
-      const body = g.body || "";
-      if (body.trim()) {
-        $vBody.innerHTML = body;
-      } else {
-        $vBody.innerHTML = "<p class='muted'>（本文なし）</p>";
-      }
-
+      // 编辑/删除按钮显示
       if (ROLE==="admin") {
-        $vOps.classList.remove("hidden");
+        document.getElementById("vOps").classList.remove("hidden");
         document.getElementById("editBtn").onclick = ()=> openModal("ガイド編集", g);
         document.getElementById("delBtn").onclick = async ()=>{
           if (!confirm("このガイドを削除しますか？")) return;
@@ -451,35 +442,24 @@
           alert("削除しました。");
         };
       } else {
-        $vOps.classList.add("hidden");
+        document.getElementById("vOps").classList.add("hidden");
       }
 
-      // URL 同期
+      // URL 同步（可直接分享）
       const url = new URL(location.href);
       url.searchParams.set("guide", g.id);
       history.replaceState(null, "", url.toString());
     }
 
-    // 保存（新規/編集）
-    $saveBtn.onclick = async ()=>{
-      if (ROLE!=="admin") {
-        alert("権限がありません。");
-        return;
-      }
-      if (!editorInstance) {
-        alert("エディターがまだ準備できていません。");
-        return;
-      }
-
+    // 保存（新建/编辑）
+    document.getElementById("saveBtn").onclick = async ()=>{
+      if (ROLE!=="admin") return alert("権限がありません。");
       const title = $fTitle.value.trim();
       const category = $fCat.value.trim() || "その他";
       const tags = ($fTags.value||"").split(",").map(s=>s.trim()).filter(Boolean);
-      const body = editorInstance.getContent() || "";
+      const body = editor ? editor.value() : ($fBody.value || "");
       const published = $fPublished.value === "true";
-      if (!title) {
-        alert("タイトルを入力してください。");
-        return;
-      }
+      if (!title) return alert("タイトルを入力してください。");
 
       const payload = {
         title, category, tags, body, published,
@@ -488,18 +468,21 @@
       };
 
       try{
-        if (editingId) {
-          // 既存ドキュメントを更新
-          await db.collection("guides").doc(editingId).set(payload, { merge:true });
+        const p = new URLSearchParams(location.search);
+        const currentId = p.get("guide"); // 若是“编辑”操作
+        if (currentId) {
+          await db.collection("guides").doc(currentId).set(payload, { merge:true });
+          closeModal();
+          await loadGuides();
+          const g = guides.find(x=>x.id===currentId);
+          if (g) openDoc(g);
         } else {
-          // 新規作成
           const ref = await db.collection("guides").add(payload);
-          editingId = ref.id;
+          closeModal();
+          await loadGuides();
+          const g = guides.find(x=>x.id===ref.id);
+          if (g) openDoc(g);
         }
-        closeModal();
-        await loadGuides();
-        const g = guides.find(x=>x.id===editingId);
-        if (g) openDoc(g);
         alert("保存しました。");
       }catch(e){
         console.error(e);
@@ -507,7 +490,7 @@
       }
     };
 
-    // 新規ボタン
+    // 新建
     $newBtn && ($newBtn.onclick = ()=>{
       const url = new URL(location.href);
       url.searchParams.delete("guide");
@@ -515,10 +498,10 @@
       openModal("ガイド新規");
     });
 
-    // 各フィルタ入力イベント
+    // 过滤事件
     [$treeQ, $q, $catSel, $tag].forEach(el => el.addEventListener("input", applyFiltersAndRenderTree));
 
-    // 初期ロード
+    // 初始化
     loadGuides().catch(console.error);
   </script>
 </body>
