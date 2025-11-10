@@ -10,8 +10,23 @@
   <style>
     #map { height: 500px; width: 90%; margin: 20px auto; border: 1px solid #ccc; border-radius: 10px; }
     #searchBox { width: 80%; max-width: 400px; margin: 10px auto; display: block; padding: 8px 10px; border-radius: 8px; border: 1px solid #999; font-size: 16px; }
-    .cat-btn { background:#e8f0fe; border:1px solid #90caf9; border-radius:999px; padding:4px 10px; margin:3px; font-size:14px; cursor:pointer; }
-    .cat-btn.active { background:#0a66c2; color:#fff; }
+
+    /* 分类chips按钮 */
+    .cat-btn {
+      background:#e8f0fe;
+      border:1px solid #90caf9;
+      border-radius:999px;
+      padding:4px 10px;
+      margin:3px;
+      font-size:14px;
+      cursor:pointer;
+      white-space: nowrap;
+    }
+    .cat-btn.active {
+      background:#0a66c2;
+      color:#fff;
+    }
+
     .info-img { width: 100%; max-width: 150px; margin-top: 6px; border-radius: 5px; }
     .info-link { display:inline-block; margin-top:8px; padding:4px 8px; background:#0a66c2; color:#fff; text-decoration:none; border-radius:4px; font-size:13px; }
 
@@ -51,19 +66,15 @@
       <p>神戸・三宮周辺の便利なお店や施設を地図でご紹介します。</p>
       <input type="text" id="searchBox" placeholder="店名・キーワードで検索...">
 
-      <!-- 分类筛选（可按需增减按钮或改为动态生成） -->
+      <!-- 分类chips：由JS根据CSV中的category动态生成 -->
       <div id="categoryFilters" style="text-align:center;margin:10px 0;">
-        <button class="cat-btn active" data-cat="all">すべて</button>
-        <button class="cat-btn" data-cat="生活用品">生活用品</button>
-        <button class="cat-btn" data-cat="通信">通信</button>
-        <button class="cat-btn" data-cat="飲食">飲食</button>
-        <button class="cat-btn" data-cat="銀行">銀行</button>
+        <!-- 这里的按钮会在JS中自动生成 -->
       </div>
     </section>
     <div id="map"></div>
   </main>
 
-  <!-- 评论弹层（保持你原先结构） -->
+  <!-- 评论弹层 -->
   <div id="comment-box">
     <div class="store-header">
       <h2 id="shop-name">店名</h2>
@@ -136,7 +147,7 @@
     let currentShopId = null;
     let lastVisible = null;
     let selectedRating = 0;
-    let currentCategory = "all";
+    let currentCategory = "all";  // 当前选中的分类（chips），默认 all
 
     function getQueryParam(name){
       const p = new URLSearchParams(window.location.search);
@@ -167,6 +178,10 @@
         download: true,
         header: true,
         complete: ({ data }) => {
+
+          // 收集所有出现过的 category
+          const categorySet = new Set();
+
           allMarkers = data.map(place => {
             if (!place.lat || !place.lng) return null;
 
@@ -178,7 +193,11 @@
             marker._shopId = (place.id && place.id.trim()) ? place.id.trim() : (place.name || "");
             marker.name = place.name || "";
             marker.description = place.description || "";
-            marker.category = (place.category || ""); // ★ 用于分类过滤
+            marker.category = (place.category || "").trim();
+
+            if (marker.category) {
+              categorySet.add(marker.category);
+            }
 
             const infoHtml = [
               `<strong>${place.name || ""}</strong>`,
@@ -189,7 +208,7 @@
             ].join("");
 
             const infoWindow = new google.maps.InfoWindow({ content: infoHtml });
-            marker.infoWindow = infoWindow; // ★ 供过滤时关闭用
+            marker.infoWindow = infoWindow;
 
             marker.addListener("click", () => {
               infoWindow.open(map, marker);
@@ -230,38 +249,77 @@
             return marker;
           }).filter(Boolean);
 
+          // ★ 根据 categorySet 动态生成 chips
+          buildCategoryChips(categorySet);
+
           focusFromQuery();
         }
       });
 
       // 关键词过滤
-      document.getElementById("searchBox").addEventListener("input", filterMarkers);
-
-      // 分类按钮事件
-      document.querySelectorAll(".cat-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          currentCategory = btn.dataset.cat;
-          filterMarkers();
-        });
-      });
+      document.getElementById("searchBox").addEventListener("input", applyFilters);
 
       // 地图空白处点击 → 收起评论面板
       map.addListener("click", () => {
         document.getElementById("comment-box").classList.remove("active");
       });
 
-      function filterMarkers() {
+      // 统一过滤函数：搜索 + 分类
+      function applyFilters() {
         const keyword = document.getElementById("searchBox").value.toLowerCase();
         allMarkers.forEach(marker => {
-          const matchKeyword = marker.name.toLowerCase().includes(keyword) ||
-                               (marker.description || '').toLowerCase().includes(keyword);
-          const matchCat = currentCategory === "all" ||
-                           (marker.category && marker.category.includes(currentCategory));
+          const name = (marker.name || "").toLowerCase();
+          const desc = (marker.description || "").toLowerCase();
+          const cat  = (marker.category || "").trim();
+
+          const matchKeyword =
+            !keyword ||
+            name.includes(keyword) ||
+            desc.includes(keyword);
+
+          const matchCat =
+            currentCategory === "all" ||
+            (cat && cat === currentCategory);
+
           const visible = matchKeyword && matchCat;
           marker.setVisible(visible);
           if (!visible && marker.infoWindow) marker.infoWindow.close();
+        });
+      }
+
+      // 内部函数，用于生成chips按钮
+      function buildCategoryChips(categorySet) {
+        const container = document.getElementById("categoryFilters");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        // “全部”按钮
+        const allBtn = document.createElement("button");
+        allBtn.className = "cat-btn active";
+        allBtn.dataset.cat = "all";
+        allBtn.textContent = "すべて";
+        container.appendChild(allBtn);
+
+        // 其余类别（按日文排序）
+        Array.from(categorySet)
+          .sort((a, b) => a.localeCompare(b, "ja"))
+          .forEach(cat => {
+            const btn = document.createElement("button");
+            btn.className = "cat-btn";
+            btn.dataset.cat = cat;
+            btn.textContent = cat;
+            container.appendChild(btn);
+          });
+
+        // 绑定点击事件（chips切换）
+        container.querySelectorAll(".cat-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            container.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentCategory = btn.dataset.cat;   // 例如 "医疗" / "生活用品"
+            applyFilters();
+          });
         });
       }
     }
