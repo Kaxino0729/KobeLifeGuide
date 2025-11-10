@@ -12,6 +12,7 @@
     .shop-hero img{width:100%;border-radius:10px;object-fit:cover;max-height:180px}
     .shop-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
     .badge{padding:2px 8px;border-radius:999px;background:#eef;font-size:12px}
+    .badge-medical{background:#ffe4e6}
     .muted{color:#64748b;font-size:12px}
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .section{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;margin-top:14px}
@@ -55,7 +56,7 @@
       </div>
     </section>
 
-    <!-- ★ 新增详细信息区块 -->
+    <!-- 詳細情報 -->
     <section class="section" id="detailSection" style="display:none;">
       <h3>📌 詳細情報</h3>
       <div id="detailContent"></div>
@@ -133,10 +134,14 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // 对应新的表结构：
+    // id, name, description, category, medical_type, address, hours, phone, website, image, link, lat, lng
     const CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+
     const p = new URLSearchParams(location.search);
     const key = (p.get("shop") || "").trim();
     let shopId=null,lastVisible=null,selectedRating=0;
+    let currentRow = null; // 保存当前店铺数据（含 lat / lng）
 
     if(!key){
       document.getElementById("notFound").style.display="block";
@@ -144,11 +149,16 @@
       Papa.parse(CSV,{
         download:true,header:true,
         complete:({data})=>{
-          let row=data.find(r=>(r.id||"").trim()===key)||data.find(r=>(r.name||"").trim()===key);
-          if(!row){document.getElementById("notFound").style.display="block";return;}
+          // 根据 id 或 name 查找
+          let row=data.find(r=>(r.id||"").trim()===key) || data.find(r=>(r.name||"").trim()===key);
+          if(!row){
+            document.getElementById("notFound").style.display="block";
+            return;
+          }
+          currentRow = row;
           shopId=(row.id||row.name).trim();
           renderBase(row);
-          renderDetail(row); // ★ 追加：详细信息渲染
+          renderDetail(row);
           document.getElementById("commentWrite").style.display="block";
           document.getElementById("commentListSec").style.display="block";
           loadComments(true);
@@ -159,32 +169,105 @@
 
     function renderBase(r){
       document.getElementById("shopTitle").textContent=r.name||"店名";
+      document.getElementById("subtitle").textContent = r.category ? `カテゴリ: ${r.category}` : "";
       document.getElementById("heroSection").style.display="block";
+
       const img=document.getElementById("shopImage");
       if(r.image) img.src=r.image;
+
       document.getElementById("shopDesc").innerHTML=r.description?`<p>${r.description}</p>`:"";
+
       const meta=document.getElementById("shopMeta");
       meta.innerHTML="";
+
       const cat=(r.category||"").trim();
       if(cat){
         const s=document.createElement("span");
-        s.className="badge";s.textContent=cat;meta.append(s);
+        s.className="badge";
+        s.textContent=cat;
+        meta.append(s);
       }
+
+      const medicalType=(r.medical_type||"").trim();
+      if(medicalType){
+        const m=document.createElement("span");
+        m.className="badge badge-medical";
+        m.textContent=medicalType;
+        meta.append(m);
+      }
+
       const actions=document.getElementById("shopActions");
-      actions.innerHTML=`
+
+      // 计算 Google Maps 导航链接
+      let mapsUrl = "";
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        // 使用经纬度，更准确
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      } else if (r.address) {
+        // fallback：用地址文本
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`;
+      } else {
+        // 再退一步：用店名
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name || "")}`;
+      }
+
+      actions.innerHTML = `
         <a class="btn" href="map.html?focus=${encodeURIComponent(shopId)}">🗺 地図で見る</a>
+        <a class="btn" href="${mapsUrl}" target="_blank" rel="noopener">📍 Googleマップで開く</a>
         <a class="btn" href="search.html">🔎 検索に戻る</a>
       `;
     }
 
-    // ★ 新增函数：详细信息展示
+    // 详细信息展示（读取新表字段）
     function renderDetail(r){
-      const fields=[];
-      if(r.address) fields.push(`<div><i class='fa-solid fa-location-dot'></i> ${r.address}</div>`);
-      if(r.hours) fields.push(`<div><i class='fa-regular fa-clock'></i> ${r.hours}</div>`);
-      if(r.phone) fields.push(`<div><i class='fa-solid fa-phone'></i> ${r.phone}</div>`);
-      if(r.website) fields.push(`<div><i class='fa-solid fa-link'></i> <a href='${r.website}' target='_blank' rel='noopener'>${r.website}</a></div>`);
-      document.getElementById("detailContent").innerHTML = fields.length ? fields.join("") : "<p class='muted'>詳細情報はありません。</p>";
+      const blocks=[];
+
+      if(r.address){
+        blocks.push(`<div><i class="fa-solid fa-location-dot"></i> ${r.address}</div>`);
+      }
+      if(r.hours){
+        blocks.push(`<div><i class="fa-regular fa-clock"></i> ${r.hours}</div>`);
+      }
+      if(r.phone){
+        blocks.push(`<div><i class="fa-solid fa-phone"></i> ${r.phone}</div>`);
+      }
+
+      if(r.website){
+        blocks.push(
+          `<div><i class="fa-solid fa-globe"></i> 
+            <a href="${r.website}" target="_blank" rel="noopener">${r.website}</a>
+           </div>`
+        );
+      }
+
+      if(r.link){
+        blocks.push(
+          `<div><i class="fa-solid fa-up-right-from-square"></i> 
+            <a href="${r.link}" target="_blank" rel="noopener">関連ページを見る</a>
+           </div>`
+        );
+      }
+
+      const detailEl = document.getElementById("detailContent");
+      if (blocks.length){
+        detailEl.innerHTML = blocks.join("");
+      }else{
+        detailEl.innerHTML = "<p class='muted'>詳細情報はありません。</p>";
+      }
+
+      // 额外提示信息（例如：经纬度信息，可选）
+      const extra = [];
+      if (r.lat && r.lng){
+        extra.push(`座標: ${r.lat}, ${r.lng}`);
+      }
+      if (extra.length){
+        document.getElementById("extraInfo").textContent = extra.join(" / ");
+      } else {
+        document.getElementById("extraInfo").textContent = "";
+      }
+
       document.getElementById("detailSection").style.display="block";
     }
 
@@ -220,6 +303,7 @@
     }
     document.getElementById("loadMore").onclick=()=>loadComments();
 
+    // 昵称只读
     if (PROFILE_NAME) {
       const nameInput = document.getElementById("username");
       if (nameInput) {
@@ -235,15 +319,19 @@
       }
     }
 
+    // 星级选择
     document.querySelectorAll(".star-input").forEach(s=>{
       s.addEventListener("click",()=>{
         selectedRating=parseInt(s.dataset.value);
         document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
-        for(let i=1;i<=selectedRating;i++)
-          document.querySelector(`.star-input[data-value='${i}']`).classList.add("selected");
+        for(let i=1;i<=selectedRating;i++){
+          const node = document.querySelector(`.star-input[data-value='${i}']`);
+          if (node) node.classList.add("selected");
+        }
       });
     });
 
+    // 发送评论
     document.getElementById("commentForm").addEventListener("submit",e=>{
       e.preventDefault();
       const typed=(document.getElementById("username").value||"").trim();
@@ -251,8 +339,11 @@
       const text=(document.getElementById("usercomment").value||"").trim();
       if(!text)return alert("コメントを入力してください。");
       db.collection("shops").doc(shopId).collection("comments").add({
-        name,text,rating:selectedRating||0,
-        uid:UID||null,email:EMAIL||null,
+        name,
+        text,
+        rating:selectedRating||0,
+        uid:UID||null,
+        email:EMAIL||null,
         time:new Date()
       }).then(()=>{
         document.getElementById("usercomment").value="";
