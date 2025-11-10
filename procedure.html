@@ -293,8 +293,32 @@
           minHeight: "220px",
           renderingConfig: { singleLineBreaks: false },
           autofocus: false,
-          status: false
+          status: false,
+          toolbar: [
+            "bold", "italic", "heading", "|",
+            "quote", "unordered-list", "ordered-list", "|",
+            "link", "table", "|",
+            "preview", "side-by-side", "fullscreen", "guide"
+          ],
+          previewRender: (plainText, preview) => {
+            // 预览区域使用 marked 渲染 Markdown → HTML
+            if (typeof marked !== "undefined") {
+              preview.innerHTML = marked.parse(plainText);
+            } else {
+              preview.innerHTML = plainText;
+            }
+            return preview.innerHTML;
+          }
         });
+
+        // 初始化后自动进入「左右分栏预览」模式
+        setTimeout(() => {
+          try {
+            editor.toggleSideBySide();
+          } catch (e) {
+            console.warn("toggleSideBySide failed:", e);
+          }
+        }, 0);
       }
     }
 
@@ -366,7 +390,6 @@
         (byCat[c] ||= []).push(g);
       });
 
-      // 分类排序
       const cats = Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ja'));
 
       $tree.innerHTML = cats.map(cat=>{
@@ -413,7 +436,7 @@
       activeId = g.id;
       // 高亮
       $tree.querySelectorAll(".doc").forEach(n=> n.classList.toggle("active", n.dataset.id===activeId));
-      // 正文
+      // 渲染正文
       $viewer.classList.remove("hidden");
       $hint.classList.add("hidden");
       $vTitle.textContent = g.title || "(無題)";
