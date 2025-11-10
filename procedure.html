@@ -236,6 +236,15 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    /* ==== Marked 全局配置（防止多余星号、支持 GFM） ==== */
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      smartLists: true,
+      smartypants: false,
+      headerIds: false
+    });
+
     /* ==== DOM refs ==== */
     const $tree = document.getElementById("tree");
     const $treeQ = document.getElementById("treeQ");
@@ -266,14 +275,25 @@
     let filtered = [];   // 过滤后用于构建树的数据
     let activeId = null; // 当前打开的文档
 
+    /* ==== 初始化 EasyMDE（修正粗体/斜体/链接等行为） ==== */
     function ensureEditor(){
       if (!editor) {
         editor = new EasyMDE({
           element: $fBody,
           spellChecker: false,
           minHeight: "220px",
+          autofocus: false,
           renderingConfig: { singleLineBreaks: false },
-          autofocus: false
+          autoDownloadFontAwesome: false,
+          forceSync: true,        // 保证 Markdown 文本同步到 textarea
+          autosave: { enabled: false },
+          promptURLs: true,       // 插入链接/图片时出现对话框
+          toolbar: [
+            "bold", "italic", "heading", "|",
+            "quote", "unordered-list", "ordered-list", "|",
+            "link", "image", "|",
+            "preview", "side-by-side", "fullscreen"
+          ]
         });
       }
     }
@@ -407,7 +427,8 @@
         ${tags}
         <span class="muted">更新日：${dstr}</span>
       `;
-      $vBody.innerHTML = marked.parse(g.body||"_（本文なし）_");
+      // 使用 marked 渲染 Markdown（支持粗体/斜体/列表/链接/图片）
+      $vBody.innerHTML = marked.parse(g.body || "_（本文なし）_");
 
       // 编辑/删除按钮显示
       if (ROLE==="admin") {
@@ -471,7 +492,6 @@
 
     // 新建
     $newBtn && ($newBtn.onclick = ()=>{
-      // 清空 URL 中的 guide 参数，表示“新建”
       const url = new URL(location.href);
       url.searchParams.delete("guide");
       history.replaceState(null, "", url.toString());
@@ -486,4 +506,3 @@
   </script>
 </body>
 </html>
-
