@@ -1,95 +1,96 @@
-
-// 全站登录拦截 + redirectTo 优先
-
 (function () {
-  //现有 login.html 里的 firebaseConfig
+  // ===== Firebase config：和 login.html 完全一致 =====
   const firebaseConfig = {
-    apiKey: "PASTE_YOURS",
-    authDomain: "PASTE_YOURS",
-    projectId: "PASTE_YOURS",
-    appId: "PASTE_YOURS",
+    apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+    authDomain: "kobe-life-guide.firebaseapp.com",
+    projectId: "kobe-life-guide",
+    storageBucket: "kobe-life-guide.firebasestorage.app",
+    messagingSenderId: "440390213094",
+    appId: "1:440390213094:web:508d4e03409ca338b54a27"
   };
 
-  // Firebase compat CDN（10.12.2 compat）
+  // ===== Firebase compat CDN（仅在页面没引入时加载）=====
   const CDN = {
     app: "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
-    auth: "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js",
+    auth: "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"
   };
 
   function loadScriptOnce(src) {
     return new Promise((resolve, reject) => {
-      // 已经加载过
       if ([...document.scripts].some(s => s.src === src)) return resolve();
       const s = document.createElement("script");
       s.src = src;
       s.async = true;
       s.onload = resolve;
-      s.onerror = () => reject(new Error("Failed to load: " + src));
+      s.onerror = reject;
       document.head.appendChild(s);
     });
   }
 
-  async function ensureFirebaseAuth() {
-    // 若页面本身已经引入 firebase，直接用
+  async function ensureAuth() {
     if (!window.firebase) {
       await loadScriptOnce(CDN.app);
       await loadScriptOnce(CDN.auth);
     }
-    // 初始化
-    if (!firebase.apps || firebase.apps.length === 0) {
+    if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
     return firebase.auth();
   }
 
   function isLoginPage() {
-    const p = location.pathname.toLowerCase();
-    return p.endsWith("/login.html") || p.endsWith("login.html");
+    return location.pathname.endsWith("/login.html")
+        || location.pathname.endsWith("login.html");
   }
 
-  function currentPageWithQueryHash() {
-    const file = location.pathname.split("/").pop() || "index.html";
-    return file + location.search + location.hash;
+  function currentPage() {
+    return location.pathname.split("/").pop() || "index.html";
   }
 
-  function buildLoginUrl() {
-    const target = encodeURIComponent(currentPageWithQueryHash());
-    return "login.html?redirectTo=" + target;
+  function redirectToLogin() {
+    const target = encodeURIComponent(currentPage());
+    location.replace(`login.html?redirectTo=${target}`);
   }
 
-  function getRedirectToFromQuery() {
-    const params = new URLSearchParams(location.search);
-    const v = params.get("redirectTo");
-    return v ? decodeURIComponent(v) : "";
+  function redirectToIndex() {
+    location.replace("index.html");
   }
 
-  function go(url) {
-    // 防止一些浏览器缓存导致的回退循环
-    location.replace(url);
-  }
+  // ===== 主逻辑 =====
+  (async function () {
+    const auth = await ensureAuth();
 
-  (async function main() {
-    const auth = await ensureFirebaseAuth();
+    let resolved = false; // 🔴 关键：防止多次触发
 
-    auth.onAuthStateChanged((user) => {
-      if (isLoginPage()) {
-        // login.html：已登录则不要再停留在登录页
-        if (user) {
-          const redirectTo = getRedirectToFromQuery();
-          go(redirectTo || "index.html"); // 优先 redirectTo，没有就 index
+    auth.onAuthStateChanged(user => {
+      if (resolved) return;       // 防抖
+      resolved = true;
+
+      const onLogin = isLoginPage();
+
+      // === 情况 1：未登录 ===
+      if (!user) {
+        if (!onLogin) {
+          redirectToLogin();
         }
+        // 在 login.html，允许停留
         return;
       }
 
-      // 非 login.html：全站必须登录（1A）
-      if (!user) {
-        go(buildLoginUrl());
+      // === 情况 2：已登录 ===
+      if (onLogin) {
+        // 有 redirectTo 就回原页面，否则去 index
+        const params = new URLSearchParams(location.search);
+        const to = params.get("redirectTo");
+        location.replace(to || "index.html");
       }
+      // 在其他页面：什么都不做（允许停留）
     });
-  })().catch((e) => {
-    // 如果 guard 失败，为了检证稳定性：直接送去 login
-    // （避免出现“白屏但能访问页面”的情况）
-    console.error(e);
-    if (!isLoginPage()) go("login.html");
+  })().catch(err => {
+    console.error("[auth-guard] fatal:", err);
+    // 出错时兜底：送去 login
+    if (!isLoginPage()) {
+      location.replace("login.html");
+    }
   });
 })();
