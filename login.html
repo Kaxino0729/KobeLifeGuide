@@ -1,197 +1,75 @@
-<!-- 文件名: login.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>ログイン / 新規登録</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>🔐 ログイン / 新規登録</h1>
-    <nav class="navbar">
-      <a href="index.html" class="btn">🏠 ホーム</a>
-      <a href="procedure.html" class="btn">📄 手続きガイド</a>
-      <a href="map.html" class="btn">🗺️ マップ</a>
-      <a href="review.html" class="btn">⭐ レビュー</a>
-      <a href="search.html" class="btn">🔎 検索</a>
 
-    </nav>
-  </header>
+  <!-- 你原本的 login UI（不要求和我这段一模一样） -->
+  <h2>ログイン</h2>
 
-  <main>
-    <!-- ログイン -->
-    <section class="auth-card card">
-      <h2>ログイン</h2>
-      <label for="loginEmail">メールアドレス</label>
-      <input type="email" id="loginEmail" placeholder="you@example.com" />
-      <label for="loginPassword">パスワード</label>
-      <input type="password" id="loginPassword" placeholder="********" />
-      <div class="auth-actions">
-        <button class="btn-submit" id="loginBtn">ログイン</button>
-        <button class="btn-submit" id="pwResetBtn" style="background:#666;">パスワード再設定</button>
-      </div>
-    </section>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
 
-    <!-- 新規登録 -->
-    <section class="auth-card card">
-      <h2>新規登録</h2>
-      <label for="signupEmail">メールアドレス</label>
-      <input type="email" id="signupEmail" placeholder="you@example.com" />
-      <label for="signupPassword">パスワード（6文字以上）</label>
-      <input type="password" id="signupPassword" placeholder="********" />
-      <div class="auth-actions">
-        <button class="btn-submit" id="signupBtn">アカウント作成</button>
-      </div>
-    </section>
+  <hr>
 
-    <!-- 状態表示 -->
-    <section class="auth-card card">
-      <h2>現在の状態</h2>
-      <p id="userStatus">未ログイン</p>
-      <div class="auth-actions">
-        <button class="btn-submit" id="logoutBtn" style="background:#a30000;">ログアウト</button>
-      </div>
-      <small id="authMsg" style="display:block;margin-top:8px;color:#666;"></small>
-    </section>
-  </main>
+  <h3>新規登録</h3>
+  <input type="email" id="regEmail" placeholder="Email">
+  <input type="password" id="regPassword" placeholder="Password">
+  <button id="registerBtn">Register</button>
 
-  <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
-  </footer>
+  <hr>
 
-  <!-- Firebase compat SDKs -->
+  <h3>パスワードを忘れた場合</h3>
+  <input type="email" id="resetEmail" placeholder="Email">
+  <button id="resetBtn">Reset Password</button>
+
+  <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    // あなたの Firebase 設定（map.html と同一）
+    // 🔴 用你自己项目里的 config
     const firebaseConfig = {
-      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
-      authDomain: "kobe-life-guide.firebaseapp.com",
-      projectId: "kobe-life-guide",
-      storageBucket: "kobe-life-guide.firebasestorage.app",
-      messagingSenderId: "440390213094",
-      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
     };
 
-    // 初期化
     firebase.initializeApp(firebaseConfig);
+
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // util: クエリパラメータ ?redirectTo=xxx を取得
-    function getQueryParam(name) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(name);
-    }
-    const redirectTo = getQueryParam("redirectTo");
+    // 登录
+    document.getElementById("loginBtn").onclick = async () => {
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      await auth.signInWithEmailAndPassword(email, pass);
+      // ⚠️这里不用写跳转，auth-guard.js 会统一处理
+    };
 
-    const userStatus = document.getElementById("userStatus");
-    const authMsg = document.getElementById("authMsg");
+    // 注册
+    document.getElementById("registerBtn").onclick = async () => {
+      const email = document.getElementById("regEmail").value;
+      const pass = document.getElementById("regPassword").value;
+      await auth.createUserWithEmailAndPassword(email, pass);
+    };
 
-    // --- 保险：登录/状态变化时，确保 Firestore に users/{uid} を補建 ---
-    async function ensureUserDoc(user) {
-      const ref = db.collection("users").doc(user.uid);
-      const snap = await ref.get();
-      if (!snap.exists) {
-        await ref.set({
-          email: user.email || "",
-          role: "user",       // 预设普通用户；管理员请到控制台改为 "admin"
-          createdAt: new Date()
-        }, { merge: true });
-        console.log("✅ users 文档已补建:", user.uid);
-      }
-      // 同步角色到本地，方便其他页面用
-      const latest = (await ref.get()).data() || {};
-      localStorage.setItem("auth_role", latest.role || "user");
-    }
-
-    // --- 新規登録（注册后写入 users/{uid}）---
-    document.getElementById("signupBtn").addEventListener("click", async () => {
-      const email = document.getElementById("signupEmail").value.trim();
-      const password = document.getElementById("signupPassword").value;
-      if (!email || !password) return alert("メールとパスワードを入力してください。");
-      try {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        authMsg.textContent = "✅ 新規登録に成功しました: " + cred.user.email;
-
-        await db.collection("users").doc(cred.user.uid).set({
-          email: cred.user.email,
-          role: "user",
-          createdAt: new Date()
-        }, { merge: true });
-
-        localStorage.setItem("auth_email", cred.user.email);
-        localStorage.setItem("auth_uid", cred.user.uid);
-        localStorage.setItem("auth_role", "user");
-      } catch (err) {
-        alert("登録エラー: " + err.message);
-      }
-    });
-
-    // --- ログイン ---
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-      if (!email || !password) return alert("メールとパスワードを入力してください。");
-      try {
-        const cred = await auth.signInWithEmailAndPassword(email, password);
-        authMsg.textContent = "✅ ログイン成功: " + cred.user.email;
-        localStorage.setItem("auth_email", cred.user.email);
-        localStorage.setItem("auth_uid", cred.user.uid);
-        // 这里不跳 ensureUserDoc，交给 onAuthStateChanged 统一处理
-
-        if (redirectTo) window.location.href = redirectTo;
-      } catch (err) {
-        alert("ログインエラー: " + err.message);
-      }
-    });
-
-    // --- パスワード再設定 ---
-    document.getElementById("pwResetBtn").addEventListener("click", async () => {
-      const email = document.getElementById("loginEmail").value.trim();
-      if (!email) return alert("再設定メールを送るにはメールアドレスを入力してください。");
-      try {
-        await auth.sendPasswordResetEmail(email);
-        alert("再設定メールを送信しました。受信ボックスをご確認ください。");
-      } catch (err) {
-        alert("送信エラー: " + err.message);
-      }
-    });
-
-    // --- ログアウト ---
-    document.getElementById("logoutBtn").addEventListener("click", async () => {
-      await auth.signOut();
-      localStorage.removeItem("auth_email");
-      localStorage.removeItem("auth_uid");
-      localStorage.removeItem("auth_role");
-      authMsg.textContent = "ログアウトしました。";
-    });
-
-    // --- 認証状態の監視：登录后自动补建档&同步角色 ---
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        userStatus.textContent = "ログイン中: " + user.email;
-        localStorage.setItem("auth_email", user.email);
-        localStorage.setItem("auth_uid", user.uid);
-
-        try {
-          await ensureUserDoc(user);   // 👈 关键：登录时也确保 Firestore 建好档案
-        } catch (e) {
-          console.warn("ensureUserDoc 失败:", e);
-          alert("ユーザープロフィールの作成/取得に失敗しました: " + e.message);
-        }
-      } else {
-        userStatus.textContent = "未ログイン";
-        localStorage.removeItem("auth_email");
-        localStorage.removeItem("auth_uid");
-        localStorage.removeItem("auth_role");
-      }
-    });
+    // 忘记密码
+    document.getElementById("resetBtn").onclick = async () => {
+      const email = document.getElementById("resetEmail").value;
+      await auth.sendPasswordResetEmail(email);
+      alert("パスワード再設定メールを送信しました");
+    };
   </script>
+
+  <!-- ✅ 必须有：全站登录控制 -->
   <script src="auth-guard.js"></script>
 </body>
 </html>
