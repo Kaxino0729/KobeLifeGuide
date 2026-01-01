@@ -1,25 +1,84 @@
+<!-- 文件名: index.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Kobe Life Guide</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神戸外国人生活ガイド</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+  <header>
+    <h1>🌏 神戸外国人生活ガイド</h1>
+    <nav class="navbar">
+      <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="procedure.html" class="btn">📄 手続きガイド</a>
+      <a href="map.html" class="btn">🗺️ マップ</a>
+      <a href="review.html" class="btn">⭐ レビュー</a>
+      <a href="search.html" class="btn">🔎 検索</a>
+      <!-- 🔐 登录入口保留（未登录用户会被 auth-guard 拦） -->
+      <a href="login.html" class="btn">🔐 ログイン</a>
+      <!-- 管理员入口（由 role 控制显示） -->
+      <a href="admin.html" class="btn admin-only">🛠 管理</a>
+    </nav>
+  </header>
 
-  <h1>Kobe Life Guide</h1>
-  <p>ログイン後のトップページ</p>
+  <main>
+    <section class="intro">
+      <h2>👋 ようこそ！</h2>
+      <p>このサイトは神戸周辺で暮らす外国人・留学生をサポートするための生活情報ガイドです。</p>
+      <ul class="feature-list">
+        <li>📄 手続き方法のガイド</li>
+        <li>🗺️ 地図から便利なスポットを探す</li>
+        <li>⭐ ユーザーによるレビュー</li>
+      </ul>
+    </section>
 
-  <nav>
-    <a href="map.html">Map</a>
-    <a href="procedure.html">Procedure</a>
-    <a href="review.html">Review</a>
-  </nav>
+    <section class="card admin-only">
+      <h3>🛠 管理者ツール</h3>
+      <p>ここから店舗レビューの編集・削除、ユーザー権限の管理を行えます。</p>
+      <p><a class="info-link" href="admin.html">管理画面へ</a></p>
+    </section>
+  </main>
 
-  <!-- 你 index 原本的 JS / Firebase 初始化都可以保留 -->
+  <footer>
+    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
+  </footer>
 
-  <!-- ✅ 必须有 -->
+  <!-- ✅ UI 控制脚本：只负责「角色显示」，不再判断是否登录 -->
+  <script>
+    (function () {
+      const role  = localStorage.getItem("auth_role");
+      const email = localStorage.getItem("auth_email");
+
+      // 顶部显示（可选）
+      if (email) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center";
+        bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8";
+        bar.style.color = "#333";
+        bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
+        document.body.prepend(bar);
+
+        const h1 = document.querySelector("header h1");
+        if (h1 && !h1.dataset.welcomed) {
+          h1.textContent = `🌏 神戸外国人生活ガイド（ようこそ ${email} さん）`;
+          h1.dataset.welcomed = "1";
+        }
+      }
+
+      // 非管理员隐藏 admin-only
+      if (role !== "admin") {
+        document.querySelectorAll(".admin-only")
+          .forEach(el => el.style.display = "none");
+      }
+    })();
+  </script>
+
+  <!-- ✅ 全站登录控制（唯一的登录判断入口） -->
   <script src="auth-guard.js"></script>
 </body>
 </html>
