@@ -1,5 +1,8 @@
+// auth-guard.js（GitHub Pages 子路径稳定版）
+// 适用于：https://username.github.io/REPO_NAME/
+
 (function () {
-  // ===== Firebase config：和 login.html 完全一致 =====
+  // ===== Firebase config（与你 login.html 完全一致）=====
   const firebaseConfig = {
     apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
     authDomain: "kobe-life-guide.firebaseapp.com",
@@ -9,13 +12,13 @@
     appId: "1:440390213094:web:508d4e03409ca338b54a27"
   };
 
-  // ===== Firebase compat CDN（仅在页面没引入时加载）=====
+  // ===== Firebase compat CDN =====
   const CDN = {
     app: "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
     auth: "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"
   };
 
-  function loadScriptOnce(src) {
+  function loadOnce(src) {
     return new Promise((resolve, reject) => {
       if ([...document.scripts].some(s => s.src === src)) return resolve();
       const s = document.createElement("script");
@@ -29,8 +32,8 @@
 
   async function ensureAuth() {
     if (!window.firebase) {
-      await loadScriptOnce(CDN.app);
-      await loadScriptOnce(CDN.auth);
+      await loadOnce(CDN.app);
+      await loadOnce(CDN.auth);
     }
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
@@ -38,59 +41,55 @@
     return firebase.auth();
   }
 
+  // ===== GitHub Pages 项目根路径（最关键）=====
+  const BASE_PATH = location.pathname.replace(/\/[^/]*$/, "/");
+  // 例：/KobeLifeGuide/
+
+  function page(name) {
+    return BASE_PATH + name;
+  }
+
   function isLoginPage() {
-    return location.pathname.endsWith("/login.html")
-        || location.pathname.endsWith("login.html");
+    return location.pathname.endsWith("/login.html");
   }
 
-  function currentPage() {
-    return location.pathname.split("/").pop() || "index.html";
+  function currentPageName() {
+    const p = location.pathname.split("/");
+    return p[p.length - 1] || "index.html";
   }
 
-  function redirectToLogin() {
-    const target = encodeURIComponent(currentPage());
-    location.replace(`login.html?redirectTo=${target}`);
-  }
-
-  function redirectToIndex() {
-    location.replace("index.html");
-  }
-
-  // ===== 主逻辑 =====
   (async function () {
     const auth = await ensureAuth();
 
-    let resolved = false; // 🔴 关键：防止多次触发
+    let decided = false;
 
     auth.onAuthStateChanged(user => {
-      if (resolved) return;       // 防抖
-      resolved = true;
+      if (decided) return;
+      decided = true;
 
       const onLogin = isLoginPage();
 
-      // === 情况 1：未登录 ===
+      // ===== 未登录 =====
       if (!user) {
         if (!onLogin) {
-          redirectToLogin();
+          const target = encodeURIComponent(currentPageName());
+          location.replace(page(`login.html?redirectTo=${target}`));
         }
-        // 在 login.html，允许停留
         return;
       }
 
-      // === 情况 2：已登录 ===
+      // ===== 已登录 =====
       if (onLogin) {
-        // 有 redirectTo 就回原页面，否则去 index
         const params = new URLSearchParams(location.search);
         const to = params.get("redirectTo");
-        location.replace(to || "index.html");
+        location.replace(page(to || "index.html"));
       }
-      // 在其他页面：什么都不做（允许停留）
+      // 其他页面：允许停留
     });
   })().catch(err => {
     console.error("[auth-guard] fatal:", err);
-    // 出错时兜底：送去 login
-    if (!isLoginPage()) {
-      location.replace("login.html");
+    if (!location.pathname.endsWith("/login.html")) {
+      location.replace(page("login.html"));
     }
   });
 })();
