@@ -1,24 +1,14 @@
-<!-- 文件名: profile.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>プロフィール設定 - 神戸外国人生活ガイド</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <style>
-    .profile-card{max-width:560px;margin:16px auto;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:16px}
-    .row{margin:10px 0}
-    .muted{color:#64748b;font-size:12px}
-    .btn-submit{background:#0a66c2;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
-    input[type="text"],input[type="email"]{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px}
-    .hint{background:#f0f4f8;padding:8px;border-radius:8px;margin-top:8px}
-  </style>
+  <meta charset="UTF-8">
+  <title>アカウント</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>👤 プロフィール設定</h1>
+    <h1>👤 アカウント</h1>
     <nav class="navbar">
       <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
@@ -32,113 +22,46 @@
   </header>
 
   <main>
-    <section class="intro">
-      <h2>表示名（ニックネーム）を設定</h2>
-      <p class="muted">コメント投稿時の名前として使われます。未ログインの方はログインページへ。</p>
-    </section>
+    <section class="card">
+      <h2>ログイン情報</h2>
+      <p id="email">メール：</p>
+      <p id="role">権限：</p>
 
-    <section class="profile-card">
-      <div id="status" class="hint">認証状態を確認中…</div>
-
-      <div class="row">
-        <label>メールアドレス</label>
-        <input id="email" type="email" disabled />
-      </div>
-
-      <div class="row">
-        <label>表示名（ニックネーム）</label>
-        <input id="displayName" type="text" placeholder="例：リュウ / さくら / Mike" />
-        <div class="muted">※ 2〜40文字以内、公開される名前です。</div>
-      </div>
-
-      <div class="row">
-        <button id="saveBtn" class="btn-submit">保存</button>
-        <a class="btn" href="map.html" style="margin-left:8px;">🗺 マップへ戻る</a>
-      </div>
+      <button class="btn-submit" id="logoutBtn" style="background:#a30000;">
+        ログアウト
+      </button>
     </section>
   </main>
 
-  <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
-  </footer>
-
-  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
   <script>
-    // 登录状态条 & 管理可见性
-    (function () {
-      const email = localStorage.getItem("auth_email");
-      const role  = localStorage.getItem("auth_role") || "user";
-      if (email) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center"; bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8"; bar.style.color = "#333"; bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role}）`;
-        document.body.prepend(bar);
-      }
-      if (role !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-    })();
-
-    // Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
-      projectId: "kobe-life-guide",
-      storageBucket: "kobe-life-guide.firebasestorage.app",
-      messagingSenderId: "440390213094",
-      appId: "1:440390213094:web:508d4e03409ca338b54a27"
+      projectId: "kobe-life-guide"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
 
-    const statusEl = document.getElementById("status");
-    const emailEl  = document.getElementById("email");
-    const nameEl   = document.getElementById("displayName");
-    const saveBtn  = document.getElementById("saveBtn");
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-    const uid   = localStorage.getItem("auth_uid");
-    const email = localStorage.getItem("auth_email");
-
-    if (!uid || !email) {
-      statusEl.textContent = "未ログインです。ログインページへ移動してください。";
-      saveBtn.disabled = true;
-    } else {
-      statusEl.textContent = "ユーザーデータを読み込み中…";
-      emailEl.value = email;
-      db.collection("users").doc(uid).get().then(doc => {
-        if (doc.exists) {
-          const d = doc.data();
-          if (d.displayName) {
-            nameEl.value = d.displayName;
-            localStorage.setItem("profile_displayName", d.displayName);
-          }
-          statusEl.textContent = "プロフィールを編集できます。";
-        } else {
-          statusEl.textContent = "初回利用です。表示名を設定して保存してください。";
-        }
-      }).catch(err => {
-        console.error(err);
-        statusEl.textContent = "読み込みに失敗しました。";
-      });
-    }
-
-    // 保存
-    saveBtn.addEventListener("click", async () => {
-      if (!uid) return alert("未ログインです。");
-      const dn = (nameEl.value || "").trim();
-      if (dn.length < 2 || dn.length > 40) return alert("表示名は2〜40文字で入力してください。");
-      try {
-        await db.collection("users").doc(uid).set({ email, displayName: dn }, { merge: true });
-        localStorage.setItem("profile_displayName", dn);
-        statusEl.textContent = "保存しました。コメント投稿時にこの名前が使われます。";
-        alert("プロフィールを保存しました。");
-      } catch (e) {
-        console.error(e);
-        alert("保存に失敗しました。");
-      }
+    // 表示
+    auth.onAuthStateChanged(user => {
+      if (!user) return; // 未登录会被 guard 拦回 login
+      document.getElementById("email").textContent = "メール：" + user.email;
+      document.getElementById("role").textContent =
+        "権限：" + (localStorage.getItem("auth_role") || "user");
     });
+
+    // 退出
+    document.getElementById("logoutBtn").onclick = async () => {
+      await auth.signOut();
+      localStorage.clear();
+      location.replace("login.html");
+    };
   </script>
+
+  <script src="auth-guard.js"></script>
 </body>
 </html>
