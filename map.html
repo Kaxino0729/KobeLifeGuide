@@ -420,5 +420,13 @@
   </script>
 
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
+  <!-- 登录拦截 -->
+  <script src="auth-guard.js"></script>
+
+  <!-- 统一 admin 权限补丁 -->
+  <script src="auth-util.js"></script>
+  <script>
+    AuthUtil.refreshRoleAndApplyAdminUI();
+  </script>
 </body>
 </html>

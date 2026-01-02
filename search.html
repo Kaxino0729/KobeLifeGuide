@@ -213,6 +213,13 @@
       let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args),delay); };
     }
   </script>
+  <!-- 登录拦截 -->
   <script src="auth-guard.js"></script>
+
+  <!--  统一 admin 权限补丁 -->
+  <script src="auth-util.js"></script>
+  <script>
+    AuthUtil.refreshRoleAndApplyAdminUI();
+  </script>
 </body>
 </html>
