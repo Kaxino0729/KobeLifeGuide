@@ -5,9 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>神戸外国人生活ガイド</title>
+
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
   <header>
     <h1>🌏 神戸外国人生活ガイド</h1>
@@ -17,8 +20,8 @@
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
       <a href="search.html" class="btn">🔎 検索</a>
-      <a href="profile.html" class="btn">👤 プロフィール</a>
-      <a href="login.html" class="btn">🔐 ログイン</a>
+      <a href="profile.html" class="btn">👤 アカウント</a>
+      <!-- 管理者専用 -->
       <a href="admin.html" class="btn admin-only">🛠 管理</a>
     </nav>
   </header>
@@ -26,7 +29,10 @@
   <main>
     <section class="intro">
       <h2>👋 ようこそ！</h2>
-      <p>このサイトは神戸周辺で暮らす外国人・留学生をサポートするための生活情報ガイドです。</p>
+      <p>
+        このサイトは神戸周辺で暮らす外国人・留学生をサポートするための
+        生活情報ガイドです。
+      </p>
       <ul class="feature-list">
         <li>📄 手続き方法のガイド</li>
         <li>🗺️ 地図から便利なスポットを探す</li>
@@ -45,39 +51,86 @@
     <p>&copy; 2025 神戸外国人支援プロジェクト</p>
   </footer>
 
-  <!-- ✅ UI 控制脚本：只负责「角色显示」，不再判断是否登录 -->
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- ✅ index 页面统一逻辑（管理员判断以 Firestore 为准） -->
   <script>
     (function () {
-      const role  = localStorage.getItem("auth_role");
-      const email = localStorage.getItem("auth_email");
+      const firebaseConfig = {
+        apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+        authDomain: "kobe-life-guide.firebaseapp.com",
+        projectId: "kobe-life-guide",
+        storageBucket: "kobe-life-guide.firebasestorage.app",
+        messagingSenderId: "440390213094",
+        appId: "1:440390213094:web:508d4e03409ca338b54a27"
+      };
 
-      // 顶部显示（可选）
-      if (email) {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+
+      const auth = firebase.auth();
+      const db   = firebase.firestore();
+
+      // 默认隐藏 admin-only（避免闪）
+      document.querySelectorAll(".admin-only")
+        .forEach(el => el.style.display = "none");
+
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return; // 未登录会被 auth-guard.js 拦截
+
+        const email = user.email || "";
+
+        // 顶部状态条
         const bar = document.createElement("div");
         bar.style.textAlign = "center";
         bar.style.padding = "6px";
         bar.style.background = "#f0f4f8";
         bar.style.color = "#333";
         bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
+        bar.textContent = `ログイン中: ${email}（確認中…）`;
         document.body.prepend(bar);
 
+        // 欢迎语
         const h1 = document.querySelector("header h1");
         if (h1 && !h1.dataset.welcomed) {
-          h1.textContent = `🌏 神戸外国人生活ガイド（ようこそ ${email} さん）`;
+          h1.textContent =
+            `🌏 神戸外国人生活ガイド（ようこそ ${email} さん）`;
           h1.dataset.welcomed = "1";
         }
-      }
 
-      // 非管理员隐藏 admin-only
-      if (role !== "admin") {
-        document.querySelectorAll(".admin-only")
-          .forEach(el => el.style.display = "none");
-      }
+        try {
+          // 🔑 权威来源：Firestore
+          const ref  = db.collection("users").doc(user.uid);
+          const snap = await ref.get();
+          const data = snap.exists ? snap.data() : {};
+          const role = data.role || "user";
+
+          // 同步缓存（兼容旧页面）
+          localStorage.setItem("auth_email", email);
+          localStorage.setItem("auth_uid", user.uid);
+          localStorage.setItem("auth_role", role);
+
+          bar.textContent =
+            `ログイン中: ${email}（役割: ${role}）`;
+
+          if (role === "admin") {
+            document.querySelectorAll(".admin-only")
+              .forEach(el => el.style.display = "");
+          }
+        } catch (e) {
+          console.warn("role fetch error:", e);
+          bar.textContent =
+            `ログイン中: ${email}（役割: user）`;
+        }
+      });
     })();
   </script>
 
-  <!-- ✅ 全站登录控制（唯一的登录判断入口） -->
+  <!-- 登录拦截 -->
   <script src="auth-guard.js"></script>
 </body>
 </html>
