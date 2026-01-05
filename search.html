@@ -11,25 +11,24 @@
     /* 仅本页必要的少量样式（不改动全站样式） */
     .search-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px auto;max-width:860px}
     .search-input{flex:1;min-width:220px;max-width:520px;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
-    .btn,.chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;text-decoration:none}
-    .chip{font-size:14px}
-    .chip.active{background:#0a66c2;color:#fff;border-color:#0a66c2}
-    .muted{color:#64748b;font-size:12px}
-    .result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1000px;margin:18px auto}
-    .card{background:#fff;border:1px solid #e6e6e6;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-    .thumb{width:100%;height:160px;object-fit:cover;background:#f2f4f7}
-    .card-body{padding:12px}
-    .badge{display:inline-block;background:#eef;padding:2px 8px;border-radius:999px;font-size:12px;margin-right:6px}
-    .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    @media (max-width:900px){.result-grid{grid-template-columns:repeat(2,1fr)}}
-    @media (max-width:640px){.result-grid{grid-template-columns:1fr}}
+    .search-select{padding:10px;border:1px solid #cbd5e1;border-radius:10px;min-width:160px}
+    .results{max-width:980px;margin:0 auto;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .card{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:12px 12px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+    .card h3{margin:0 0 6px 0;font-size:16px}
+    .meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px}
+    .chip{font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
+    .muted{color:#64748b;font-size:12px;line-height:1.5}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .btn{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:8px 10px;border:1px solid #cbd5e1;background:#f8fafc;text-decoration:none;color:#0f172a;font-size:13px}
+    .btn:hover{background:#eef2ff}
+    .empty{max-width:980px;margin:10px auto;padding:18px;color:#64748b;text-align:center}
   </style>
 </head>
 <body>
   <header>
-    <h1>🔎 店舗検索</h1>
+    <h1>🔎 検索</h1>
     <nav class="navbar">
-       <a href="index.html" class="btn">🏠 ホーム</a>
+      <a href="index.html" class="btn">🏠 ホーム</a>
       <a href="procedure.html" class="btn">📄 手続きガイド</a>
       <a href="map.html" class="btn">🗺️ マップ</a>
       <a href="review.html" class="btn">⭐ レビュー</a>
@@ -40,168 +39,106 @@
     </nav>
   </header>
 
-  <main>
-    <section class="intro" style="text-align:center;max-width:920px;margin:0 auto;">
-      <p class="muted">キーワード・カテゴリで店舗を探し、「店舗詳細」または「地図で見る」から遷移できます。</p>
+  <div class="search-bar">
+    <input id="q" class="search-input" type="search" placeholder="例：病院 / SIM / 住まい / 契約 / 役所..." />
+    <select id="cat" class="search-select">
+      <option value="">すべて</option>
+      <option value="SIM・通信">SIM・通信</option>
+      <option value="住まい・賃貸">住まい・賃貸</option>
+      <option value="銀行・口座">銀行・口座</option>
+      <option value="市役所・在留">市役所・在留</option>
+      <option value="学校・学籍">学校・学籍</option>
+      <option value="仕事・アルバイト">仕事・アルバイト</option>
+      <option value="その他">その他</option>
+    </select>
+  </div>
 
-      <div class="search-bar">
-        <input id="q" class="search-input" type="search" placeholder="店名・説明で検索（例：ドンキ / ダイソー / SIM / 銀行）" />
-        <button id="clearBtn" class="btn" title="条件クリア"><i class="fa-solid fa-eraser"></i> クリア</button>
-      </div>
+  <div id="results" class="results"></div>
+  <div id="empty" class="empty" style="display:none;">該当する結果がありません。</div>
 
-      <div id="chips" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px;"></div>
-
-      <div id="stats" class="muted" style="margin-top:8px;">読み込み中…</div>
-    </section>
-
-    <section class="result-grid" id="results"></section>
-  </main>
-
-  <footer>
-    <p>&copy; 2025 神戸外国人支援プロジェクト</p>
-  </footer>
-
-  <!-- PapaParse 读取 CSV -->
+  <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script>
-    // 登录状态条（不依赖 Firebase，仅使用 localStorage 展示）
-    (function () {
-      const email = localStorage.getItem("auth_email");
-      const role  = localStorage.getItem("auth_role") || "user";
-      if (email) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center"; bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8"; bar.style.color = "#333"; bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${email}（役割: ${role}）`;
-        document.body.prepend(bar);
-      }
-      if (role !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-    })();
 
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+  <script>
+    // ===== Data source (Google Sheets CSV) =====
+    const CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?output=csv";
 
     const $q = document.getElementById("q");
-    const $chips = document.getElementById("chips");
+    const $cat = document.getElementById("cat");
     const $results = document.getElementById("results");
-    const $stats = document.getElementById("stats");
-    const $clear = document.getElementById("clearBtn");
+    const $empty = document.getElementById("empty");
 
-    let RAW = [];           // 原始 CSV 行
-    let CATS = [];          // 类别列表
-    let state = { q: "", cat: "すべて" };
+    let rows = [];
 
-    // 读取 URL 参数（支持直达）
-    (function initFromQuery(){
-      const p = new URLSearchParams(location.search);
-      const q = (p.get("q") || "").trim();
-      const cat = (p.get("cat") || "").trim();
-      if (q) { state.q = q; $q.value = q; }
-      if (cat) { state.cat = cat; }
-    })();
+    function safe(v){ return (v == null) ? "" : String(v).trim(); }
 
-    // 加载 CSV
-    Papa.parse(CSV_URL, {
-      download: true,
-      header: true,
-      complete: ({ data }) => {
-        RAW = (data || []).filter(r => (r.name && r.name.trim()) || (r.id && r.id.trim()));
-        buildCategories();
-        renderChips();
-        applyFilter();
-        // 输入时实时过滤（含回车）
-        $q.addEventListener("input", debounce(() => { state.q = $q.value.trim(); syncQuery(); applyFilter(); }, 120));
-        $q.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); state.q=$q.value.trim(); syncQuery(); applyFilter(); }});
-        $clear.addEventListener("click", ()=>{ state.q=""; state.cat="すべて"; $q.value=""; renderChips(); syncQuery(); applyFilter(); });
-      }
-    });
-
-    // 分类去重构建
-    function buildCategories(){
-      const set = new Set();
-      RAW.forEach(r => {
-        const c = (r.category || "").trim();
-        if (c) c.split(",").map(s=>s.trim()).filter(Boolean).forEach(x=>set.add(x));
-      });
-      CATS = ["すべて", ...Array.from(set)];
-      if (!CATS.includes(state.cat)) state.cat = "すべて";
-    }
-
-    // 渲染 chips
-    function renderChips(){
-      $chips.innerHTML = "";
-      CATS.forEach(cat => {
-        const a = document.createElement("button");
-        a.className = "chip" + (cat === state.cat ? " active":"");
-        a.textContent = cat;
-        a.addEventListener("click", () => {
-          state.cat = cat;
-          renderChips();
-          syncQuery();
-          applyFilter();
-        });
-        $chips.appendChild(a);
+    function loadCSV(){
+      Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          rows = (res.data || []).filter(r => r && (r.id || r.name));
+          render();
+        },
+        error: (err) => {
+          console.error("CSV読み込み失敗:", err);
+          $results.innerHTML = "";
+          $empty.style.display = "block";
+          $empty.textContent = "データの読み込みに失敗しました。";
+        }
       });
     }
 
-    // 同步地址栏（便于分享 / 刷新不丢条件）
-    function syncQuery(){
-      const params = new URLSearchParams();
-      if (state.q) params.set("q", state.q);
-      if (state.cat && state.cat !== "すべて") params.set("cat", state.cat);
-      const s = params.toString();
-      history.replaceState(null, "", s ? `?${s}` : location.pathname);
+    function matchRow(r, q, cat){
+      const name = safe(r.name);
+      const desc = safe(r.description);
+      const category = safe(r.category);
+
+      if (cat && category !== cat) return false;
+      if (!q) return true;
+
+      const s = (name + " " + desc + " " + category).toLowerCase();
+      return s.includes(q.toLowerCase());
     }
 
-    // 过滤 & 渲染结果
-    function applyFilter(){
-      const kw = state.q.toLowerCase();
-      const cat = state.cat;
+    function render(){
+      const q = safe($q.value);
+      const cat = safe($cat.value);
 
-      const list = RAW.filter(r => {
-        // 关键词：命中 name/description
-        const name = (r.name || "").toLowerCase();
-        const desc = (r.description || "").toLowerCase();
-        const hitKw = !kw || name.includes(kw) || desc.includes(kw);
+      const out = rows.filter(r => matchRow(r, q, cat));
 
-        // 分类：命中 category（支持逗号分隔）
-        const cats = (r.category || "").split(",").map(s=>s.trim()).filter(Boolean);
-        const hitCat = (cat === "すべて") || cats.includes(cat);
-
-        return hitKw && hitCat;
-      });
-
-      $stats.textContent = `${list.length} 件ヒット（カテゴリ: ${cat}${state.q ? ` / キーワード: "${state.q}"`:""}）`;
-      renderCards(list);
-    }
-
-    // 卡片渲染
-    function renderCards(list){
       $results.innerHTML = "";
-      if (!list.length) {
-        $results.innerHTML = `<div class="muted" style="grid-column:1/-1;text-align:center;">該当する店舗は見つかりませんでした。</div>`;
-        return;
-      }
+      $empty.style.display = out.length ? "none" : "block";
 
-      list.forEach(r => {
-        const id = (r.id && r.id.trim()) ? r.id.trim() : (r.name || "").trim();
-        const img = (r.image && r.image.trim()) ? r.image.trim() : "";
-        const cat = (r.category || "").split(",").map(s=>s.trim()).filter(Boolean);
-        const desc = (r.description || "").trim();
+      out.forEach(r => {
+        const id = safe(r.id);
+        const name = safe(r.name) || "(無題)";
+        const desc = safe(r.description);
+        const category = safe(r.category);
+        const img = safe(r.image);
+        const addr = safe(r.address);
+        const hours = safe(r.hours);
 
-        const card = document.createElement("article");
+        const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          ${img ? `<img class="thumb" src="${img}" alt="サムネイル" onerror="this.style.display='none'">` : `<div class="thumb"></div>`}
-          <div class="card-body">
-            <h3 style="margin:0 0 6px 0;">${r.name || "(名称未設定)"}</h3>
-            <div>${cat.map(c=>`<span class="badge">${c}</span>`).join(" ")}</div>
-            ${desc ? `<p style="margin:8px 0 0 0;">${desc}</p>` : ""}
-
-            <div class="card-actions">
-              <a class="btn" href="shop.html?shop=${encodeURIComponent(id)}"><i class="fa-solid fa-tag"></i> 店舗詳細</a>
-              <a class="btn" href="map.html?focus=${encodeURIComponent(id)}"><i class="fa-solid fa-map-location-dot"></i> 地図で見る</a>
-              ${r.link ? `<a class="btn" href="${r.link}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> 公式/関連</a>` : ""}
-            </div>
+          <h3>${name}</h3>
+          <div class="meta">
+            ${category ? `<span class="chip"><i class="fa-solid fa-tag"></i> ${category}</span>` : ""}
+            ${r.medical_type ? `<span class="chip"><i class="fa-solid fa-stethoscope"></i> ${safe(r.medical_type)}</span>` : ""}
+          </div>
+          ${img ? `<img src="${img}" alt="" style="width:100%;border-radius:12px;margin:6px 0 10px;max-height:170px;object-fit:cover">` : ""}
+          ${desc ? `<div class="muted">${desc}</div>` : ""}
+          ${(addr || hours) ? `<div class="muted" style="margin-top:8px;">
+            ${addr ? `<div><i class="fa-solid fa-location-dot"></i> ${addr}</div>` : ""}
+            ${hours ? `<div><i class="fa-regular fa-clock"></i> ${hours}</div>` : ""}
+          </div>` : ""}
+          <div class="actions">
+            <a class="btn" href="shop.html?shop=${encodeURIComponent(id)}"><i class="fa-solid fa-tag"></i> 店舗詳細</a>
+            <a class="btn" href="map.html?focus=${encodeURIComponent(id)}"><i class="fa-solid fa-map-location-dot"></i> 地図で見る</a>
+            ${r.link ? `<a class="btn" href="${safe(r.link)}" target="_blank"><i class="fa-solid fa-up-right-from-square"></i> 公式/関連</a>` : ""}
           </div>
         `;
         $results.appendChild(card);
@@ -212,7 +149,17 @@
     function debounce(fn, delay){
       let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args),delay); };
     }
+
+    $q.addEventListener("input", debounce(render, 150));
+    $cat.addEventListener("change", render);
+
+    loadCSV();
   </script>
+
+  <!-- Firebase (for auth-guard stability) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
   <!-- 登录拦截 -->
   <script src="auth-guard.js"></script>
 

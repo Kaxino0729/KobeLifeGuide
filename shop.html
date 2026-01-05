@@ -1,379 +1,178 @@
-<!-- 文件名: shop.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>店舗詳細 - 神戸外国人生活ガイド</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <style>
-    .shop-hero{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:start}
-    .shop-hero img{width:100%;border-radius:10px;object-fit:cover;max-height:180px}
-    .shop-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-    .badge{padding:2px 8px;border-radius:999px;background:#eef;font-size:12px}
-    .badge-medical{background:#ffe4e6}
-    .muted{color:#64748b;font-size:12px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .section{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;margin-top:14px}
-    .stars{color:#ffc107}
-    .star-input{font-size:20px;color:#ccc;cursor:pointer}
-    .star-input.selected{color:#ffc107}
-    .comment{border-top:1px solid #eee;background:#f8faff;margin-bottom:6px;padding:8px;border-radius:4px}
-    .btn-submit{background:#0a66c2;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-    @media (max-width:640px){.shop-hero{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>🏷 店舗詳細</h1>
-    <nav class="navbar">
-      <a href="index.html" class="btn">🏠 ホーム</a>
-      <a href="procedure.html" class="btn">📄 手続きガイド</a>
-      <a href="map.html" class="btn">🗺️ マップ</a>
-      <a href="review.html" class="btn">⭐ レビュー</a>
-      <a href="search.html" class="btn">🔎 検索</a>
-      <a href="profile.html" class="btn">👤 プロフィール</a>
-      <a href="login.html" class="btn">🔐 ログイン</a>
-      <a href="admin.html" class="btn admin-only">🛠 管理</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="intro">
-      <h2 id="shopTitle">読み込み中…</h2>
-      <p class="muted" id="subtitle">URLパラメータ ?shop= に店IDを指定してください。</p>
-    </section>
-
-    <section class="section" id="heroSection" style="display:none;">
-      <div class="shop-hero">
-        <img id="shopImage" alt="画像" src="" onerror="this.style.display='none'"/>
-        <div>
-          <div id="shopDesc"></div>
-          <div class="shop-meta" id="shopMeta"></div>
-          <div class="actions" id="shopActions"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 詳細情報 -->
-    <section class="section" id="detailSection" style="display:none;">
-      <h3>📌 詳細情報</h3>
-      <div id="detailContent"></div>
-      <div id="extraInfo" class="muted" style="margin-top:8px;"></div>
-    </section>
-
-    <section class="section" id="ratingSummary" style="display:none;">
-      <h3>⭐ 評価の概要</h3>
-      <div id="avgRating">集計中…</div>
-    </section>
-
-    <section class="section" id="commentWrite" style="display:none;">
-      <h3>💬 コメントを書く</h3>
-      <form id="commentForm">
-        <input type="text" id="username" placeholder="お名前（任意）" /><br/>
-        <textarea id="usercomment" rows="3" placeholder="コメントを入力"></textarea><br/>
-        <div id="rating-stars">
-          <span class="star-input" data-value="1">★</span>
-          <span class="star-input" data-value="2">★</span>
-          <span class="star-input" data-value="3">★</span>
-          <span class="star-input" data-value="4">★</span>
-          <span class="star-input" data-value="5">★</span>
-        </div>
-        <button type="submit" class="btn-submit">送信</button>
-      </form>
-    </section>
-
-    <section class="section" id="commentListSec" style="display:none;">
-      <h3>🗂 コメント一覧</h3>
-      <div id="comments"></div>
-      <button id="loadMore" class="btn-submit" style="display:none;margin-top:6px;">もっと見る</button>
-    </section>
-
-    <section class="section" id="notFound" style="display:none;">
-      <p>該当店舗が見つかりません。</p>
-      <a class="btn" href="search.html">🔎 検索へ戻る</a>
-    </section>
-  </main>
-
-  <footer><p>&copy; 2025 神戸外国人支援プロジェクト</p></footer>
+  <meta charset="UTF-8">
+  <title>店舗情報</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
 
-  <script>
-    const PROFILE_NAME = localStorage.getItem("profile_displayName") || null;
-    const ROLE  = localStorage.getItem("auth_role") || "user";
-    const EMAIL = localStorage.getItem("auth_email") || null;
-    const UID   = localStorage.getItem("auth_uid") || null;
+<body>
+<header>
+  <h1>🏪 店舗情報</h1>
+  <nav class="navbar">
+    <a href="index.html">🏠 ホーム</a>
+    <a href="map.html">🗺️ マップ</a>
+    <a href="search.html">🔍 検索</a>
+    <a href="procedure.html">📄 手続き</a>
+    <a href="review.html">⭐ レビュー</a>
+    <a href="profile.html">👤 プロフィール</a>
+    <a href="login.html">🔐 ログイン</a>
+    <a href="admin.html" class="admin-only">🛠 管理</a>
+  </nav>
+</header>
 
-    (function () {
-      if (EMAIL) {
-        const bar = document.createElement("div");
-        bar.style.textAlign = "center";
-        bar.style.padding = "6px";
-        bar.style.background = "#f0f4f8";
-        bar.style.color = "#333";
-        bar.style.fontSize = "14px";
-        bar.textContent = `ログイン中: ${EMAIL}（役割: ${ROLE}）`;
-        document.body.prepend(bar);
-      }
-      if (ROLE !== "admin") document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
-    })();
+<main>
+  <section id="shop-detail">
+    <h2 id="shop-name">店舗名</h2>
+    <p id="shop-category"></p>
+    <p id="shop-description"></p>
+    <p id="shop-address"></p>
+    <p id="shop-hours"></p>
+    <p id="shop-phone"></p>
+    <p><a id="shop-website" href="#" target="_blank"></a></p>
+    <img id="shop-image" src="" alt="" style="max-width:100%;display:none;">
+  </section>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
-      authDomain: "kobe-life-guide.firebaseapp.com",
-      projectId: "kobe-life-guide",
-      storageBucket: "kobe-life-guide.firebasestorage.app",
-      messagingSenderId: "440390213094",
-      appId: "1:440390213094:web:508d4e03409ca338b54a27"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  <section id="comments">
+    <h3>📝 コメント</h3>
+    <div id="comment-list"></div>
 
-    // 对应新的表结构：
-    // id, name, description, category, medical_type, address, hours, phone, website, image, link, lat, lng
-    const CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
+    <div id="comment-form">
+      <textarea id="comment-text" placeholder="コメントを入力"></textarea>
+      <button id="submit-comment">送信</button>
+    </div>
+  </section>
+</main>
 
-    const p = new URLSearchParams(location.search);
-    const key = (p.get("shop") || "").trim();
-    let shopId=null,lastVisible=null,selectedRating=0;
-    let currentRow = null; // 保存当前店铺数据（含 lat / lng）
+<script>
+  /* ===== Firebase config ===== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
+    authDomain: "kobe-life-guide.firebaseapp.com",
+    projectId: "kobe-life-guide",
+    storageBucket: "kobe-life-guide.firebasestorage.app",
+    messagingSenderId: "440390213094",
+    appId: "1:440390213094:web:508d4e03409ca338b54a27"
+  };
 
-    if(!key){
-      document.getElementById("notFound").style.display="block";
-    }else{
-      Papa.parse(CSV,{
-        download:true,header:true,
-        complete:({data})=>{
-          // 根据 id 或 name 查找
-          let row=data.find(r=>(r.id||"").trim()===key) || data.find(r=>(r.name||"").trim()===key);
-          if(!row){
-            document.getElementById("notFound").style.display="block";
-            return;
-          }
-          currentRow = row;
-          shopId=(row.id||row.name).trim();
-          renderBase(row);
-          renderDetail(row);
-          document.getElementById("commentWrite").style.display="block";
-          document.getElementById("commentListSec").style.display="block";
-          loadComments(true);
-          calcAvgRating();
-        }
-      });
-    }
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    function renderBase(r){
-      document.getElementById("shopTitle").textContent=r.name||"店名";
-      document.getElementById("subtitle").textContent = r.category ? `カテゴリ: ${r.category}` : "";
-      document.getElementById("heroSection").style.display="block";
+  /* ===== auth info ===== */
+  const UID = localStorage.getItem("auth_uid");
+  const EMAIL = localStorage.getItem("auth_email");
+  const ROLE = localStorage.getItem("auth_role") || "user";
 
-      const img=document.getElementById("shopImage");
-      if(r.image) img.src=r.image;
+  if (ROLE !== "admin") {
+    document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+  }
 
-      document.getElementById("shopDesc").innerHTML=r.description?`<p>${r.description}</p>`:"";
+  /* ===== URL param ===== */
+  const params = new URLSearchParams(location.search);
+  const shopId = params.get("shop");
 
-      const meta=document.getElementById("shopMeta");
-      meta.innerHTML="";
+  /* ===== CSV ===== */
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?output=csv";
 
-      const cat=(r.category||"").trim();
-      if(cat){
-        const s=document.createElement("span");
-        s.className="badge";
-        s.textContent=cat;
-        meta.append(s);
-      }
-
-      const medicalType=(r.medical_type||"").trim();
-      if(medicalType){
-        const m=document.createElement("span");
-        m.className="badge badge-medical";
-        m.textContent=medicalType;
-        meta.append(m);
-      }
-
-      const actions=document.getElementById("shopActions");
-
-      // 计算 Google Maps 导航链接
-      let mapsUrl = "";
-      const lat = parseFloat(r.lat);
-      const lng = parseFloat(r.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        // 使用经纬度，更准确
-        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      } else if (r.address) {
-        // fallback：用地址文本
-        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`;
-      } else {
-        // 再退一步：用店名
-        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name || "")}`;
-      }
-
-      actions.innerHTML = `
-        <a class="btn" href="map.html?focus=${encodeURIComponent(shopId)}">🗺 地図で見る</a>
-        <a class="btn" href="${mapsUrl}" target="_blank" rel="noopener">📍 Googleマップで開く</a>
-        <a class="btn" href="search.html">🔎 検索に戻る</a>
-      `;
-    }
-
-    // 详细信息展示（读取新表字段）
-    function renderDetail(r){
-      const blocks=[];
-
-      if(r.address){
-        blocks.push(`<div><i class="fa-solid fa-location-dot"></i> ${r.address}</div>`);
-      }
-      if(r.hours){
-        blocks.push(`<div><i class="fa-regular fa-clock"></i> ${r.hours}</div>`);
-      }
-      if(r.phone){
-        blocks.push(`<div><i class="fa-solid fa-phone"></i> ${r.phone}</div>`);
-      }
-
-      if(r.website){
-        blocks.push(
-          `<div><i class="fa-solid fa-globe"></i> 
-            <a href="${r.website}" target="_blank" rel="noopener">${r.website}</a>
-           </div>`
-        );
-      }
-
-      if(r.link){
-        blocks.push(
-          `<div><i class="fa-solid fa-up-right-from-square"></i> 
-            <a href="${r.link}" target="_blank" rel="noopener">関連ページを見る</a>
-           </div>`
-        );
-      }
-
-      const detailEl = document.getElementById("detailContent");
-      if (blocks.length){
-        detailEl.innerHTML = blocks.join("");
-      }else{
-        detailEl.innerHTML = "<p class='muted'>詳細情報はありません。</p>";
-      }
-
-      // 额外提示信息（例如：经纬度信息，可选）
-      const extra = [];
-      if (r.lat && r.lng){
-        extra.push(`座標: ${r.lat}, ${r.lng}`);
-      }
-      if (extra.length){
-        document.getElementById("extraInfo").textContent = extra.join(" / ");
-      } else {
-        document.getElementById("extraInfo").textContent = "";
-      }
-
-      document.getElementById("detailSection").style.display="block";
-    }
-
-    function loadComments(reset=false){
-      if(!shopId)return;
-      const list=document.getElementById("comments");
-      const more=document.getElementById("loadMore");
-      if(reset){list.innerHTML="";lastVisible=null;}
-      let ref=db.collection("shops").doc(shopId).collection("comments").orderBy("time","desc").limit(5);
-      if(lastVisible)ref=ref.startAfter(lastVisible);
-      ref.get().then(snap=>{
-        if(snap.empty){
-          more.style.display="none";
-          if(reset) list.innerHTML="<small>コメントがありません</small>";
+  function loadShop() {
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const shops = res.data;
+        const shop = shops.find(s => s.id === shopId);
+        if (!shop) {
+          alert("店舗が見つかりません");
           return;
         }
-        snap.forEach(doc=>{
-          const d=doc.data();
-          const time=d.time?.toDate?d.time.toDate():new Date();
-          const stars="★".repeat(d.rating||0)+"☆".repeat(5-(d.rating||0));
-          const row=document.createElement("div");
-          row.className="comment";
-          row.innerHTML=`
-            <strong>${d.name||"匿名"}</strong> <span class="stars">${stars}</span><br/>
-            ${d.text?`<div>${d.text}</div>`:""}
-            <small class="muted">${time.getFullYear()}/${time.getMonth()+1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}</small>
-          `;
-          list.append(row);
-        });
-        lastVisible=snap.docs[snap.docs.length-1];
-        more.style.display=snap.size<5?"none":"block";
-      });
-    }
-    document.getElementById("loadMore").onclick=()=>loadComments();
 
-    // 昵称只读
-    if (PROFILE_NAME) {
-      const nameInput = document.getElementById("username");
-      if (nameInput) {
-        nameInput.value = PROFILE_NAME;
-        nameInput.readOnly = true;
-        nameInput.style.opacity = "0.6";
-        nameInput.title = "プロフィールの表示名が使用されます";
-        const tip = document.createElement("div");
-        tip.className = "muted";
-        tip.style.marginTop = "6px";
-        tip.textContent = `表示名として「${PROFILE_NAME}」を使用します。`;
-        nameInput.insertAdjacentElement("afterend", tip);
-      }
-    }
+        document.getElementById("shop-name").textContent = shop.name || "";
+        document.getElementById("shop-category").textContent = shop.category || "";
+        document.getElementById("shop-description").textContent = shop.description || "";
+        document.getElementById("shop-address").textContent = shop.address || "";
+        document.getElementById("shop-hours").textContent = shop.hours || "";
+        document.getElementById("shop-phone").textContent = shop.phone || "";
 
-    // 星级选择
-    document.querySelectorAll(".star-input").forEach(s=>{
-      s.addEventListener("click",()=>{
-        selectedRating=parseInt(s.dataset.value);
-        document.querySelectorAll(".star-input").forEach(n=>n.classList.remove("selected"));
-        for(let i=1;i<=selectedRating;i++){
-          const node = document.querySelector(`.star-input[data-value='${i}']`);
-          if (node) node.classList.add("selected");
+        if (shop.website) {
+          const a = document.getElementById("shop-website");
+          a.href = shop.website;
+          a.textContent = shop.website;
         }
-      });
-    });
 
-    // 发送评论
-    document.getElementById("commentForm").addEventListener("submit",e=>{
-      e.preventDefault();
-      const typed=(document.getElementById("username").value||"").trim();
-      const name=(PROFILE_NAME&&PROFILE_NAME.trim())?PROFILE_NAME.trim():(typed||"匿名");
-      const text=(document.getElementById("usercomment").value||"").trim();
-      if(!text)return alert("コメントを入力してください。");
-      db.collection("shops").doc(shopId).collection("comments").add({
-        name,
-        text,
-        rating:selectedRating||0,
-        uid:UID||null,
-        email:EMAIL||null,
-        time:new Date()
-      }).then(()=>{
-        document.getElementById("usercomment").value="";
-        selectedRating=0;
-        document.querySelectorAll(".star-input").forEach(x=>x.classList.remove("selected"));
-        alert("送信しました！");
-        loadComments(true);
-        calcAvgRating();
-      });
-    });
+        if (shop.image) {
+          const img = document.getElementById("shop-image");
+          img.src = shop.image;
+          img.style.display = "block";
+        }
 
-    function calcAvgRating(){
-      if(!shopId)return;
-      db.collection("shops").doc(shopId).collection("comments").get().then(snap=>{
-        if(snap.empty)return;
-        let sum=0;
-        snap.forEach(doc=>sum+=(doc.data().rating||0));
-        const avg=(sum/snap.size).toFixed(2);
-        document.getElementById("ratingSummary").style.display="block";
-        document.getElementById("avgRating").innerHTML=`平均評価: <strong>${avg}</strong> / 5（${snap.size}件）`;
+        loadComments();
+      }
+    });
+  }
+
+  /* ===== Comments ===== */
+  function loadComments() {
+    db.collection("shop_comments")
+      .where("shopId", "==", shopId)
+      .orderBy("createdAt", "desc")
+      .onSnapshot(snapshot => {
+        const list = document.getElementById("comment-list");
+        list.innerHTML = "";
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          const div = document.createElement("div");
+          div.className = "comment";
+          div.innerHTML = `
+            <p>${c.text}</p>
+            <small>${c.email || "匿名"}</small>
+          `;
+          list.appendChild(div);
+        });
       });
+  }
+
+  document.getElementById("submit-comment").onclick = async () => {
+    const text = document.getElementById("comment-text").value.trim();
+    if (!text) return;
+
+    if (!UID) {
+      alert("ログインしてください");
+      return;
     }
-  </script>
-  <!-- 登录拦截 -->
-  <script src="auth-guard.js"></script>
 
-  <!-- 统一 admin 权限补丁 -->
-  <script src="auth-util.js"></script>
-  <script>
-    AuthUtil.refreshRoleAndApplyAdminUI();
-  </script>
+    await db.collection("shop_comments").add({
+      shopId,
+      text,
+      uid: UID,
+      email: EMAIL,
+      createdAt: new Date()
+    });
+
+    document.getElementById("comment-text").value = "";
+  };
+
+  loadShop();
+</script>
+
+<!-- 登录拦截 -->
+<script src="auth-guard.js"></script>
+
+<!-- admin-only 统一处理 -->
+<script src="auth-util.js"></script>
+<script>
+  AuthUtil.refreshRoleAndApplyAdminUI();
+</script>
+
 </body>
 </html>

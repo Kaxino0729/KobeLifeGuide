@@ -257,6 +257,7 @@
 
   <!-- ===== Firebase & libs ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -282,14 +283,14 @@
 
     /* ==== Firebase ==== */
     const firebaseConfig = {
-      apiKey: "AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g",
+      apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
       projectId: "kobe-life-guide",
       storageBucket: "kobe-life-guide.firebasestorage.app",
       messagingSenderId: "440390213094",
       appId: "1:440390213094:web:508d4e03409ca338b54a27"
     };
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     /* ==== DOM refs ==== */
