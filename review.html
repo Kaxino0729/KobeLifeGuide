@@ -25,8 +25,15 @@
 
   <div id="comment-section">
     <h2>📝 コメント投稿</h2>
-    <textarea id="comment-input" rows="4" cols="50" placeholder="ここにコメントを書いてください"></textarea><br>
-    <button onclick="submitComment()">投稿</button>
+    <form id="commentForm">
+      <label for="name">お名前（任意）</label>
+      <input type="text" id="name" placeholder="例：リュウさん" />
+
+      <label for="comment">コメント内容</label>
+      <textarea id="comment" rows="4" placeholder="生活の悩みや、便利だったことなど"></textarea>
+
+      <button type="submit">投稿</button>
+    </form>
   </div>
 
   <div id="comment-list">
@@ -35,26 +42,59 @@
   </div>
 
   <script>
-    // （既存ロジック保持）
-    const uid = localStorage.getItem("auth_uid") || "";
-    const email = localStorage.getItem("auth_email") || "";
-    const role = localStorage.getItem("auth_role") || "user";
+    const form = document.getElementById("commentForm");
+    const nameInput = document.getElementById("name");
+    const commentInput = document.getElementById("comment");
+    const commentList = document.getElementById("comments");
 
-    function submitComment() {
-      const input = document.getElementById("comment-input");
-      const text = (input.value || "").trim();
-      if (!text) return alert("コメントを入力してください。");
+    // localStorage に保存されたコメントを取得
+    let comments = JSON.parse(localStorage.getItem("review_comments")) || [];
 
-      // 既存の保存処理（Firestore 側で実装済みの想定）
-      // ※本ファイルは auth / admin 表示の統一だけを担当し、ビジネスロジックは改変しない
-      alert("（既存実装）コメント投稿処理を実行します。");
-      input.value = "";
+    // コメント表示
+    function renderComments() {
+      commentList.innerHTML = "";
+      comments.forEach((c) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${c.name || "匿名"}:</strong> ${c.comment}`;
+        commentList.appendChild(li);
+      });
     }
 
-    // 既存：admin 表示制御（localStorage 由来）
+    // コメント投稿
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      const comment = commentInput.value.trim();
+      if (!comment) {
+        alert("コメント内容を入力してください。");
+        return;
+      }
+      comments.push({ name, comment });
+      localStorage.setItem("review_comments", JSON.stringify(comments));
+      form.reset();
+      renderComments();
+    });
+
+    renderComments();
+
+    /* ===== 页面联动：显示登录状态 / 隐藏 admin-only ===== */
     (function () {
-      if (role === "admin") {
-        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "inline-flex");
+      const email = localStorage.getItem("auth_email");
+      const role  = localStorage.getItem("auth_role");
+
+      if (email) {
+        const bar = document.createElement("div");
+        bar.style.textAlign = "center";
+        bar.style.padding = "6px";
+        bar.style.background = "#f0f4f8";
+        bar.style.color = "#333";
+        bar.style.fontSize = "14px";
+        bar.textContent = `ログイン中: ${email}（役割: ${role || "user"}）`;
+        document.body.prepend(bar);
+
+        if (role !== "admin") {
+          document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+        }
       } else {
         document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
       }
