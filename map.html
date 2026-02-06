@@ -10,6 +10,11 @@
   <style>
     #map { height: 500px; width: 90%; margin: 20px auto; border: 1px solid #ccc; border-radius: 10px; }
     #searchBox { width: 80%; max-width: 400px; margin: 10px auto; display: block; padding: 8px 10px; border-radius: 8px; border: 1px solid #999; font-size: 16px; }
+
+    /* 追加：弹层按钮排版（不影响全站，只影响 map.html） */
+    .info-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .info-link { display:inline-block; padding:8px 10px; border-radius:8px; text-decoration:none; background:#0a66c2; color:#fff; font-size:14px; }
+    .info-link.secondary { background:#666; }
   </style>
 </head>
 
@@ -50,7 +55,12 @@
       <div style="display:flex; gap:10px; align-items:flex-start;">
         <img id="storeImage" class="info-img" alt="" style="display:none;" />
         <div style="flex:1;">
-          <a id="storeLink" class="info-link" href="#" target="_blank" style="display:none;">詳細へ</a>
+          <!-- ✅ 这里替换：原来的 storeLink(詳細へ) 改为按钮组 -->
+          <div class="info-actions">
+            <a id="storeDetail" class="info-link" href="#">詳細へ</a>
+            <a id="storeOfficial" class="info-link secondary" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">公式サイト</a>
+            <a id="storeGmap" class="info-link secondary" href="#" target="_blank" rel="noopener noreferrer">Googleマップ</a>
+          </div>
         </div>
       </div>
 
@@ -92,7 +102,6 @@
 
   <!-- Firebase compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <!-- ✅ 追加：Auth（ログイン状態復元のため必須） -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
@@ -109,17 +118,18 @@
       appId: "1:440390213094:web:508d4e03409ca338b54a27"
     };
 
-    // ✅ 二重初期化防止（これがないと「ログインしてるのに未ログイン扱い」になりやすい）
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-
     const db = firebase.firestore();
 
     // ====== ここから下は元の map.html ロジック（保持） ======
     const ROLE  = localStorage.getItem("auth_role") || "user";
     const EMAIL = localStorage.getItem("auth_email") || null;
     const UID   = localStorage.getItem("auth_uid") || null;
+
+    // ⚠️ 你的 map.html 这里用的是 profile_name（而 shop.html 用的是 profile_displayName）
+    // 先保持不动（按你“最小修改”原则）。后续你要统一昵称时再一起改。
     const PROFILE_NAME = localStorage.getItem("profile_name") || "";
 
     if (ROLE !== "admin") {
@@ -200,11 +210,6 @@
     }
 
     function loadShops() {
-      // 你原来这里是读 CSV/GoogleSheet 的逻辑（保持）
-      // 注意：这段逻辑在你上传的 map.html 里已经完整存在，这里 그대로保留
-      // ---- 下面是原文件内容（未删改） ----
-
-      // CSV（Google Sheet 公開CSV）
       const shopCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRdoRvyh8AKmNq032tjbaVhv0nEhjsrWD-r0dQopKqu0z6RjDN5BJ2tCX5-Z3CnlKiDuyBn7lPiGBh/pub?gid=0&single=true&output=csv";
 
       Papa.parse(shopCsvUrl, {
@@ -271,6 +276,7 @@
         const desc = (r.description || r.desc || "").trim();
         const img = (r.image || r.img || "").trim();
         const url = (r.url || r.link || "").trim();
+        const address = (r.address || "").trim();
 
         const marker = new google.maps.Marker({
           position: { lat, lng },
@@ -284,7 +290,7 @@
 
         marker.addListener("click", () => {
           openCommentBox({
-            shopId, shopName, category, desc, img, url,
+            shopId, shopName, category, desc, img, url, address,
             lat, lng
           });
         });
@@ -312,13 +318,34 @@
         img.style.display = "none";
       }
 
-      const link = document.getElementById("storeLink");
-      if (info.url) {
-        link.href = info.url;
-        link.style.display = "";
+      // ✅ 关键改动：3 个按钮的行为
+      const shopKey = (info.shopId || info.shopName || "").trim();
+      const detailBtn = document.getElementById("storeDetail");
+      detailBtn.href = `shop.html?shop=${encodeURIComponent(shopKey)}`;
+      detailBtn.style.display = "";
+
+      const officialBtn = document.getElementById("storeOfficial");
+      if ((info.url || "").trim()) {
+        officialBtn.href = info.url.trim();
+        officialBtn.style.display = "";
       } else {
-        link.style.display = "none";
+        officialBtn.style.display = "none";
       }
+
+      const gmapBtn = document.getElementById("storeGmap");
+      const lat = Number(info.lat);
+      const lng = Number(info.lng);
+      let gmapUrl = "";
+      if (isFinite(lat) && isFinite(lng)) {
+        gmapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      } else if ((info.address || "").trim()) {
+        gmapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(info.address.trim())}`;
+      } else if ((info.shopName || "").trim()) {
+        gmapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(info.shopName.trim())}`;
+      } else {
+        gmapUrl = "https://www.google.com/maps";
+      }
+      gmapBtn.href = gmapUrl;
 
       document.getElementById("username").value = PROFILE_NAME || "";
       document.getElementById("usercomment").value = "";
@@ -380,7 +407,6 @@
     }
   </script>
 
-  <!-- ✅ 修正：Google Maps のURLを完全な形に戻す（... を排除） -->
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg-vCkfk4ys_m3oWLlCV0D-ZHcj4EtJ4g&callback=initMap"></script>
 
