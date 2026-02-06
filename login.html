@@ -84,7 +84,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    // Firebase 設定（あなたの現行そのまま）
+    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyB8dt1NgMhBtKlUeFzCAzImuKKjzKCrOTM",
       authDomain: "kobe-life-guide.firebaseapp.com",
@@ -94,7 +94,6 @@
       appId: "1:440390213094:web:508d4e03409ca338b54a27"
     };
 
-    // 二重初期化防止（auth-guard.js と共存）
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db   = firebase.firestore();
@@ -119,6 +118,7 @@
         el.textContent="";
       });
     }
+
     function showView(name){
       Object.values(views).forEach(v=>v.classList.remove("active"));
       Object.values(tabs).forEach(t=>t.classList.remove("active"));
@@ -126,17 +126,25 @@
       tabs[name].classList.add("active");
       clearMsgs();
     }
+
     function routeByHash(){
       const h=(location.hash||"#login").replace("#","");
       if(h==="signup") showView("signup");
       else if(h==="forgot") showView("forgot");
       else showView("login");
     }
+
     window.addEventListener("hashchange", routeByHash);
     routeByHash();
 
+    // ★ 修复点：tab 本身绑定点击事件
+    tabs.login.addEventListener("click", () => { location.hash = "#login"; });
+    tabs.signup.addEventListener("click", () => { location.hash = "#signup"; });
+    tabs.forgot.addEventListener("click", () => { location.hash = "#forgot"; });
+
     document.getElementById("linkForgot").addEventListener("click", (e)=>{
-      e.preventDefault(); location.hash="#forgot";
+      e.preventDefault();
+      location.hash="#forgot";
     });
     document.getElementById("backToLogin1").addEventListener("click", ()=> location.hash="#login");
     document.getElementById("backToLogin2").addEventListener("click", ()=> location.hash="#login");
@@ -147,7 +155,7 @@
       el.classList.add(ok ? "ok" : "err");
     }
 
-    // ===== users/{uid} 補建 & role 同步（保留你的设计）=====
+    // ===== users/{uid} 補建 =====
     async function ensureUserDoc(user) {
       const ref = db.collection("users").doc(user.uid);
       const snap = await ref.get();
@@ -164,10 +172,7 @@
       localStorage.setItem("auth_role", latest.role || "user");
       localStorage.setItem("auth_email", user.email || "");
       localStorage.setItem("auth_uid", user.uid);
-      return latest.role || "user";
     }
-
-    // ===== Actions =====
 
     // 新規登録
     document.getElementById("signupBtn").addEventListener("click", async () => {
@@ -181,8 +186,7 @@
       try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         await ensureUserDoc(cred.user);
-        showMsg(msg, "✅ 新規登録に成功しました。移動します…", true);
-        // 跳转交给 auth-guard.js
+        showMsg(msg, "✅ 新規登録に成功しました。", true);
       } catch (err) {
         showMsg(msg, "登録エラー:\n" + (err.message || err), false);
       }
@@ -194,14 +198,12 @@
       const password = document.getElementById("loginPassword").value;
       const msg = document.getElementById("msgLogin");
 
-      if (!email || !password) return showMsg(msg, "メールとパスワードを入力してください。", false);
+      if (!email || !password) return showMsg(msg, "メールアドレスとパスワードを入力してください。", false);
 
       try {
         const cred = await auth.signInWithEmailAndPassword(email, password);
-        // 尽量在 guard 跳转前写入 localStorage（给 index/admin-only 用）
-        try { await ensureUserDoc(cred.user); } catch(_) {}
-        showMsg(msg, "✅ ログイン成功。移動します…", true);
-        // 跳转交给 auth-guard.js
+        await ensureUserDoc(cred.user);
+        showMsg(msg, "✅ ログイン成功。", true);
       } catch (err) {
         showMsg(msg, "ログインエラー:\n" + (err.message || err), false);
       }
@@ -215,13 +217,11 @@
 
       try {
         await auth.sendPasswordResetEmail(email);
-        showMsg(msg, "✅ 再設定メールを送信しました。受信ボックスをご確認ください。", true);
+        showMsg(msg, "✅ 再設定メールを送信しました。", true);
       } catch (err) {
         showMsg(msg, "送信エラー:\n" + (err.message || err), false);
       }
     });
-
-    // 重要：login.html では onAuthStateChanged を使わない（auth-guard.js と競合しやすい）
   </script>
 
   <!-- 全站登录控制 -->
